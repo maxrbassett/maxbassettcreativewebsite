@@ -93,52 +93,10 @@ export const narrativeDocumentary = [
 
 export const aiVideos = [
   {
-    id: 'ai-1',
-    youtubeId: 'Smr8abi9yu8',
-    title: 'A Pirate Adventure — Ep. 1',
-    description: "My son's pirate ship playtime transformed into a cinematic adventure using Google Flow.",
-  },
-  {
-    id: 'ai-2',
-    youtubeId: 'tDxEk0fI-GY',
-    title: 'Barbie Dreamhouse — Ep. 2',
-    description: "Real toys, real imagination — visualizing what playtime looks like inside a child's mind.",
-  },
-  {
-    id: 'ai-3',
-    youtubeId: 'iiNo08mqVmg',
-    title: 'The Castle Prisoner — Ep. 3',
-    description: "What my son sees when he plays with his toy castle: knights, a dark fortress, and a prisoner taken to the dungeon.",
-  },
-  {
-    id: 'ai-4',
-    youtubeId: 'TsRV9v_SEEE',
-    title: 'Runaway Train Pt. 1 — Ep. 4',
-    description: 'A Magnatile train set becomes a cinematic runaway train adventure.',
-  },
-  {
-    id: 'ai-5',
-    youtubeId: 'g1u9X-_JvXM',
-    title: 'Runaway Train Pt. 2 — Ep. 5',
-    description: 'The train adventure continues — toys on the floor, a cinematic world in the mind.',
-  },
-  {
-    id: 'ai-6',
-    youtubeId: 'N8t-7jry3Q0',
-    title: 'A Princess Story — Ep. 6',
-    description: "A toy princess castle becomes a magical royal ballroom — captured through AI filmmaking.",
-  },
-  {
-    id: 'ai-7',
-    youtubeId: 'khYmnvQnY4c',
-    title: 'Winter Olympics — Ep. 7',
-    description: "A backyard slide becomes an Olympic ski slope. Toy racers compete in a cinematic winter race.",
-  },
-  {
-    id: 'ai-8',
-    youtubeId: '5SHNiUoMcYc',
-    title: 'Rough Seas — Ep. 8',
-    description: 'A LEGO boat scene transformed into a full cinematic story with massive waves and a dramatic rescue.',
+    id: 'ai-10',
+    youtubeId: 'TQgcGvrH9lE',
+    title: 'The Dune Sandbox — Ep. 10',
+    description: 'A backyard sandbox transformed into a Dune-inspired cinematic desert landscape.',
   },
   {
     id: 'ai-9',
@@ -147,10 +105,52 @@ export const aiVideos = [
     description: 'A magnetic tile race track becomes a cinematic stadium race event. Red vs. Blue.',
   },
   {
-    id: 'ai-10',
-    youtubeId: 'TQgcGvrH9lE',
-    title: 'The Dune Sandbox — Ep. 10',
-    description: 'A backyard sandbox transformed into a Dune-inspired cinematic desert landscape.',
+    id: 'ai-8',
+    youtubeId: '5SHNiUoMcYc',
+    title: 'Rough Seas — Ep. 8',
+    description: 'A LEGO boat scene transformed into a full cinematic story with massive waves and a dramatic rescue.',
+  },
+  {
+    id: 'ai-7',
+    youtubeId: 'khYmnvQnY4c',
+    title: 'Winter Olympics — Ep. 7',
+    description: "A backyard slide becomes an Olympic ski slope. Toy racers compete in a cinematic winter race.",
+  },
+  {
+    id: 'ai-6',
+    youtubeId: 'N8t-7jry3Q0',
+    title: 'A Princess Story — Ep. 6',
+    description: "A toy princess castle becomes a magical royal ballroom — captured through AI filmmaking.",
+  },
+  {
+    id: 'ai-5',
+    youtubeId: 'g1u9X-_JvXM',
+    title: 'Runaway Train Pt. 2 — Ep. 5',
+    description: 'The train adventure continues — toys on the floor, a cinematic world in the mind.',
+  },
+  {
+    id: 'ai-4',
+    youtubeId: 'TsRV9v_SEEE',
+    title: 'Runaway Train Pt. 1 — Ep. 4',
+    description: 'A Magnatile train set becomes a cinematic runaway train adventure.',
+  },
+  {
+    id: 'ai-3',
+    youtubeId: 'iiNo08mqVmg',
+    title: 'The Castle Prisoner — Ep. 3',
+    description: "What my son sees when he plays with his toy castle: knights, a dark fortress, and a prisoner taken to the dungeon.",
+  },
+  {
+    id: 'ai-2',
+    youtubeId: 'tDxEk0fI-GY',
+    title: 'Barbie Dreamhouse — Ep. 2',
+    description: "Real toys, real imagination — visualizing what playtime looks like inside a child's mind.",
+  },
+  {
+    id: 'ai-1',
+    youtubeId: 'Smr8abi9yu8',
+    title: 'A Pirate Adventure — Ep. 1',
+    description: "My son's pirate ship playtime transformed into a cinematic adventure using Google Flow.",
   },
   // ← Add more AI videos below this line
   // {
