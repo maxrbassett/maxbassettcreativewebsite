@@ -1,0 +1,110 @@
+.video-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: border-color 0.25s ease, transform 0.25s ease;
+  overflow: hidden;
+}
+
+.video-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-3px);
+}
+
+/* Aspect ratio wrapper — 16:9 */
+.video-card__embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+}
+
+.video-card__embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Thumbnail + overlay */
+.video-card__thumbnail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.video-card__thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.video-card__thumbnail:hover img {
+  transform: scale(1.03);
+}
+
+.video-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.25s ease;
+}
+
+.video-card__thumbnail:hover .video-card__overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.video-card__play-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.video-card__thumbnail:hover .video-card__play-btn {
+  transform: scale(1.1);
+  background: var(--color-accent-hover);
+}
+
+.video-card__play-btn svg {
+  width: 26px;
+  height: 26px;
+  margin-left: 3px; /* optical centering for play icon */
+}
+
+/* Text info */
+.video-card__info {
+  padding: 16px 20px 20px;
+}
+
+.video-card__title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.video-card__description {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}

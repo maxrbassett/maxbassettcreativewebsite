@@ -1,0 +1,76 @@
+.page-title span {
+  color: var(--color-accent);
+}
+
+.about__layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+/* Photo */
+.about__photo-placeholder {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.about__photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  display: block;
+}
+
+/* Bio */
+.about__name {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-primary);
+  margin-bottom: 24px;
+}
+
+.about__text {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1.8;
+  margin-bottom: 16px;
+}
+
+.about__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  border-bottom: 1px solid var(--color-accent);
+  padding-bottom: 2px;
+  transition: gap 0.2s ease;
+}
+
+.about__cta:hover {
+  gap: 14px;
+}
+
+@media (max-width: 800px) {
+  .about__layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .about__photo-placeholder,
+  .about__photo {
+    max-width: 320px;
+  }
+}
