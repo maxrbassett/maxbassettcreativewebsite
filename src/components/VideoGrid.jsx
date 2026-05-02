@@ -4,7 +4,13 @@ import './VideoGrid.css'
 export default function VideoGrid({ videos }) {
   if (!videos || videos.length === 0) {
     return (
-      <p className="video-grid__empty">No videos yet — check back soon.</p>
+      <div className="video-grid__construction">
+        <div className="video-grid__construction-inner">
+          <span className="video-grid__construction-icon">🎬</span>
+          <h3 className="video-grid__construction-title">Page Under Construction</h3>
+          <p className="video-grid__construction-text">Videos coming soon — check back shortly.</p>
+        </div>
+      </div>
     )
   }
 

@@ -15,3 +15,37 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Under construction state */
+.video-grid__construction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  border: 1px dashed var(--color-border);
+}
+
+.video-grid__construction-inner {
+  text-align: center;
+  padding: 48px;
+}
+
+.video-grid__construction-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.video-grid__construction-title {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
+}
+
+.video-grid__construction-text {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+}
