@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import './VideoCard.css'
 
-// Builds the YouTube thumbnail URL from a video ID
-function getThumbnailUrl(youtubeId) {
-  return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
+// YouTube generates several thumbnail sizes. We try maxresdefault first,
+// then fall back to hqdefault if it doesn't exist.
+function getThumbnailUrl(youtubeId, quality = 'maxresdefault') {
+  return `https://img.youtube.com/vi/${youtubeId}/${quality}.jpg`
 }
 
 export default function VideoCard({ youtubeId, title, description }) {
   const [playing, setPlaying] = useState(false)
+  const [imgSrc, setImgSrc] = useState(getThumbnailUrl(youtubeId, 'hqdefault'))
+
+  const handleImgError = () => {
+    // Fall back to hqdefault (always exists for every YouTube video)
+    setImgSrc(getThumbnailUrl(youtubeId, 'hqdefault'))
+  }
 
   return (
     <div className="video-card">
@@ -26,9 +33,10 @@ export default function VideoCard({ youtubeId, title, description }) {
             aria-label={`Play ${title}`}
           >
             <img
-              src={getThumbnailUrl(youtubeId)}
+              src={imgSrc}
               alt={title}
               loading="lazy"
+              onError={handleImgError}
             />
             <div className="video-card__overlay">
               <div className="video-card__play-btn">

@@ -1,4 +1,5 @@
 import './About.css'
+import maxProfile from '../assets/maxProfile.jpeg'
 
 export default function About() {
   return (
@@ -11,14 +12,7 @@ export default function About() {
       <div className="about__layout">
         {/* Photo */}
         <div className="about__photo-wrap">
-          {/*
-            Replace the placeholder div below with:
-            <img src="/your-photo.jpg" alt="Max Bassett" className="about__photo" />
-            Place your image in the /public folder of the project.
-          */}
-          <div className="about__photo-placeholder">
-            <span>Your Photo Here</span>
-          </div>
+            <img src={maxProfile} alt="Max Bassett" className="about__photo" />
         </div>
 
         {/* Bio */}

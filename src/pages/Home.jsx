@@ -1,36 +1,48 @@
 import { Link } from 'react-router-dom'
 import './Home.css'
 
-// Each category card links to a page and shows a representative YouTube thumbnail.
-// Replace the youtubeId values with a video from that category to use as the cover image.
+// TODO: Add in trailers for PMG and Netherlands conference.
+// TODO: Add social media content.
+// Each category card links to a page.
+// Currently using custom images placed in the /public folder.
+// To switch back to YouTube thumbnails, comment out the `image` field
+// and uncomment the `youtubeId` field, then swap the CategoryCard
+// img src back to the YouTube thumbnail URL (see comment in CategoryCard below).
+
 const categories = [
   {
     to: '/trailers-promos',
     label: 'Trailers & Promos',
-    youtubeId: 'dQw4w9WgXcQ', // ← Replace with a video ID from this category
+    image: '/trailersThumbnail.png',
+    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
   },
   {
     to: '/social-short-form',
     label: 'Social & Short Form',
-    youtubeId: 'dQw4w9WgXcQ', // ← Replace with a video ID from this category
+    image: '/socialThumbnail.png',
+    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
   },
   {
     to: '/narrative-documentary',
     label: 'Narrative & Documentary',
-    youtubeId: 'dQw4w9WgXcQ', // ← Replace with a video ID from this category
+    image: '/narrativeThumbnail.png',
+    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
   },
   {
     to: '/ai',
     label: 'AI',
-    youtubeId: 'dQw4w9WgXcQ', // ← Replace with a video ID from this category
+    image: '/aiThumbnail.png',
+    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
   },
 ]
 
-function CategoryCard({ to, label, youtubeId }) {
-  const thumb = `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
+function CategoryCard({ to, label, image }) {
+  // To switch back to YouTube thumbnails, replace the `src` below with:
+  // src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+  // and update the function signature to accept { to, label, youtubeId }
   return (
     <Link to={to} className="category-card">
-      <img src={thumb} alt={label} className="category-card__img" loading="lazy" />
+      <img src={image} alt={label} className="category-card__img" loading="lazy" />
       <div className="category-card__overlay">
         <span className="category-card__label">{label}</span>
         <span className="category-card__arrow">→</span>
