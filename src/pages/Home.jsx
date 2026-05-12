@@ -64,9 +64,6 @@ export default function Home() {
           </h1>
           <div className="accent-line" />
           <Link to="/contact" className="home__cta">Get in Touch</Link>
-          <p className="home__tagline">
-            Visual storytelling across every format — from trailers to AI films.
-          </p>
         </div>
       </section>
 
