@@ -15,22 +15,52 @@
 
 export const trailersPromos = [
   {
-    id: 'tp-1',
-    youtubeId: 'UL5YojeR598',
-    title: 'Bicentennial General Conference 2020 Trailer',
-    description: 'Fan-made trailer celebrating the 200th year of the Restoration.',
+    id: 'tp-4',
+    youtubeId: '1qE5tWuvYzQ',
+    title: 'Teaser Trailer | Old Town ',
+    description: 'Teaser for the Strange Productions western film.',
+  },
+  {
+    id: 'tp-3',
+    youtubeId: '4phZ35DNGiw',
+    title: 'Event Trailer | Amsterdam EuroCollege Career Day 2025',
+    description: 'A trailer created for a career day event at the Amsterdam EuroCollege, showcasing the excitement and opportunities of the event.',
   },
   {
     id: 'tp-2',
     youtubeId: 'MZ1u0Dejh_Y',
-    title: 'The Pink Panther — Action Thriller Recut',
+    title: 'Recut Trailer | The Pink Panther',
     description: 'A recut trailer exploring how music and editing can transform the tone of a film.',
   },
   {
-    id: 'tp-3',
-    youtubeId: '1qE5tWuvYzQ',
-    title: 'Old Town | Official Teaser | 2024',
-    description: 'Teaser for the Strange Productions western film.',
+    id: 'tp-6',
+    youtubeId: 'Mx7fu1LC6K4',
+    title: 'Recut Music Video | Believer',
+    description: 'Contenstant for a music video recut contest hosted by the band Imagine Dragons.',
+  },
+  {
+    id: 'tp-1',
+    youtubeId: 'UL5YojeR598',
+    title: 'Event Trailer | General Conference 2020',
+    description: 'Fan-made trailer celebrating the 200th year of the Restoration.',
+  },
+  {
+    id: 'tp-5',
+    youtubeId: 'c8hplD7QM90',
+    title: 'Promo | JFF',
+    description: 'A short promotional video for the JFF.',
+  },
+  {
+    id: 'tp-5',
+    youtubeId: 'me-VEg1RmDY',
+    title: 'Trailer | PMG 2024',
+    description: 'A trailer created for missionaryuniverse YouTube channel.',
+  },
+  {
+    id: 'tp-5',
+    youtubeId: 'cHsNJwXd2r4',
+    title: 'Event Trailer | General Conference 2025',
+    description: 'A fan-made trailer in preparation for the 2025 General Conference, highlighting the themes of faith, hope, and unity.',
   },
   // ← Add more trailers below this line
   // {
@@ -42,14 +72,63 @@ export const trailersPromos = [
 ]
 
 export const socialShortForm = [
-  // ← Social videos coming soon. Paste YouTube IDs here when ready.
+  {
+    id: 'sf-1',
+    youtubeId: '7uti1teAqFU',
+    title: 'Music Video | Fulton Lee Demo 1', 
+    description: '',
+  },
+  {
+    id: 'sf-2',
+    youtubeId: 'iLdk56kHwxY',
+    title: 'Live Snippet | Fulton Lee Demo 2', 
+    description: '',
+  },
+  {
+    id: 'sf-3',
+    youtubeId: 'b_ORalcozsU',
+    title: 'Promo | Global Youth Service Day', 
+    description: '',
+  },
+  {
+    id: 'sf-4',
+    youtubeId: '8eLL2YdVL5k',
+    title: 'Promo | Giving Machine 2024', 
+    description: '',
+  },
+  {
+    id: 'sf-5',
+    youtubeId: 'MV1HFSj6NVg',
+    title: "Narrative | Jena's Story", 
+    description: '',
+  },
+  {
+    id: 'sf-6',
+    youtubeId: 'gVtn7xeNojc',
+    title: 'Inspiration | Best Days and Worst Days', 
+    description: '',
+  },
+  {
+    id: 'sf-7',
+    youtubeId: 'r4FtGcrqeZI',
+    title: 'Inspiration | It\'s Okay to Cry', 
+    description: '',
+  },
+  {
+    id: 'sf-8',
+    youtubeId: 'xXAEI-ADQa0',
+    title: 'Charity Highlight | MiraVia', 
+    description: '',
+  },
+  // ← Add more social videos below this line
   // {
-  //   id: 'sf-1',
+  //   id: 'sf-9',
   //   youtubeId: 'REPLACE_ME',
   //   title: 'Your Title Here',
   //   description: '',
   // },
 ]
+
 
 export const narrativeDocumentary = [
   {
@@ -72,16 +151,17 @@ export const narrativeDocumentary = [
   },
   {
     id: 'nd-4',
-    youtubeId: 'kSvkkYUTkbc',
-    title: 'Strange Playground',
-    description: 'A fun summer day turns into a mysterious adventure for the Bassett kids.',
+    youtubeId: 'Jve3pQNSEhk',
+    title: 'Light the World! Charlotte Giving Machine 2024',
+    description: 'A short film created for the Charlotte Giving Machine, a local charitable initiative.',
   },
   {
     id: 'nd-5',
-    youtubeId: 'c6xj7O3lXQ8',
-    title: 'A Day at the Lake',
-    description: 'Family videography shot on iPhone X.',
+    youtubeId: 'ItJwN5AyWqg',
+    title: 'Spark Hope, Spread Joy! Charlotte Giving Machine 2025',
+    description: 'A short film created for the Charlotte Giving Machine, a local charitable initiative.',
   },
+
   // ← Add more below this line
   // {
   //   id: 'nd-6',

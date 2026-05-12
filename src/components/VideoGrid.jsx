@@ -1,7 +1,7 @@
 import VideoCard from './VideoCard'
 import './VideoGrid.css'
 
-export default function VideoGrid({ videos }) {
+export default function VideoGrid({ videos, vertical = false }) {
   if (!videos || videos.length === 0) {
     return (
       <div className="video-grid__construction">
@@ -15,13 +15,14 @@ export default function VideoGrid({ videos }) {
   }
 
   return (
-    <div className="video-grid">
+    <div className={`video-grid ${vertical ? 'video-grid--vertical' : ''}`}>
       {videos.map(video => (
         <VideoCard
           key={video.id}
           youtubeId={video.youtubeId}
           title={video.title}
           description={video.description}
+          vertical={vertical}
         />
       ))}
     </div>

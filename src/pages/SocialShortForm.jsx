@@ -1,6 +1,6 @@
 import VideoGrid from '../components/VideoGrid'
 import { socialShortForm } from '../data/videos'
-import '../styles/VideoPage.css'
+import './SocialShortForm.css'
 
 export default function SocialShortForm() {
   return (
@@ -8,9 +8,11 @@ export default function SocialShortForm() {
       <header className="page-header">
         <h1 className="page-title">Social <span>&</span> Short Form</h1>
         <div className="accent-line" />
-        <p className="page-subtitle">Scroll-stopping content for social platforms</p>
+        <p className="social-disclaimer">
+          Portfolio demos — these previews were uploaded for display purposes.
+        </p>
       </header>
-      <VideoGrid videos={socialShortForm} />
+      <VideoGrid videos={socialShortForm} vertical />
     </div>
   )
 }

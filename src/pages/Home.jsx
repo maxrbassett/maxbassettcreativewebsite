@@ -13,36 +13,36 @@ const categories = [
   {
     to: '/trailers-promos',
     label: 'Trailers & Promos',
-    image: '/trailersThumbnail.png',
-    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
+    // image: '/trailersThumbnail.png',
+    youtubeId: 'cHsNJwXd2r4',
   },
   {
     to: '/social-short-form',
     label: 'Social & Short Form',
-    image: '/socialThumbnail.png',
-    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
+    // image: '/socialThumbnail.png',
+    youtubeId: 'b_ORalcozsU',
   },
   {
     to: '/narrative-documentary',
     label: 'Narrative & Documentary',
-    image: '/narrativeThumbnail.png',
-    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
+    // image: '/narrativeThumbnail.png',
+    youtubeId: '4rte6B5TyT0',
   },
   {
     to: '/ai',
     label: 'AI',
     image: '/aiThumbnail.png',
-    // youtubeId: 'REPLACE_WITH_VIDEO_ID',
+    // youtubeId: 'TQgcGvrH9lE',
   },
 ]
 
-function CategoryCard({ to, label, image }) {
+function CategoryCard({ to, label, image, youtubeId }) {
   // To switch back to YouTube thumbnails, replace the `src` below with:
-  // src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+  // src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`} (or src={image} to use custom images) and make sure to pass the `youtubeId` field in the categories array above.
   // and update the function signature to accept { to, label, youtubeId }
   return (
     <Link to={to} className="category-card">
-      <img src={image} alt={label} className="category-card__img" loading="lazy" />
+      <img src={image ? image : `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`} alt={label} className="category-card__img" loading="lazy" />
       <div className="category-card__overlay">
         <span className="category-card__label">{label}</span>
         <span className="category-card__arrow">→</span>
@@ -63,6 +63,7 @@ export default function Home() {
             <span className="home__headline-accent">CREATIVE</span>
           </h1>
           <div className="accent-line" />
+          <Link to="/contact" className="home__cta">Get in Touch</Link>
           <p className="home__tagline">
             Visual storytelling across every format — from trailers to AI films.
           </p>
