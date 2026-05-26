@@ -49,9 +49,23 @@ export default function Contact() {
             internal tool, or a video project — I'd love to hear about it.
           </p>
           <p className="contact__email-label">Or reach me directly at</p>
-          <a className="contact__email" href="mailto:maxrbassett@gmail.com">
-            maxrbassett@gmail.com
-          </a>
+          {/*
+            Email is rendered entirely via a CSS pseudo-element drawn from
+            reversed data attributes. The actual address never appears in
+            the DOM as text, and there is no "@" anywhere in the markup —
+            so email-harvesting bots that scan HTML can't pick it up.
+            Visitors see "maxrbassett@gmail.com" normally because the
+            element uses RTL direction with unicode-bidi override.
+          */}
+          <span
+            className="contact__email"
+            data-user="ttessabrxam"
+            data-domain="liamg"
+            data-tld="moc"
+          />
+          <p className="contact__email-note">
+            (please type the address manually — no copy/paste)
+          </p>
         </div>
 
         <form className="contact__form" onSubmit={handleSubmit} noValidate>

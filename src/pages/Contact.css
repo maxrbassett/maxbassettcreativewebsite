@@ -28,16 +28,28 @@
   margin-bottom: 8px;
 }
 
+/* Email is built from three reversed-string data attributes, joined with
+   "." and "@" in CSS content, then displayed right-to-left so it reads
+   correctly. The full address never exists in the DOM. */
 .contact__email {
+  display: inline-block;
   font-family: var(--font-display);
   font-size: 1.1rem;
   letter-spacing: 0.06em;
   color: var(--color-accent);
-  transition: opacity 0.2s;
+  unicode-bidi: bidi-override;
+  direction: rtl;
 }
 
-.contact__email:hover {
-  opacity: 0.8;
+.contact__email::before {
+  content: attr(data-tld) "." attr(data-domain) "@" attr(data-user);
+}
+
+.contact__email-note {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
 }
 
 /* Form */

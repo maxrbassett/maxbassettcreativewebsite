@@ -26,7 +26,7 @@ export default function About() {
           <p className="about__text">
             I'm a software developer based in Lancaster, South Carolina. I build web apps,
             sites, and internal tools — combining clean engineering with
-            careful attention to design and user experience. I currently work as a Full-stack
+            careful attention to design and user experience. I currently work as a Senior Full-stack
             Developer at Chicago Venture Partners and assist in the software development for 
             their portfolio companies, including Typenex Medical, a medical device company supplying 
             hospitals, clinics, and surgery centers with the tools they need to provide better care. 
