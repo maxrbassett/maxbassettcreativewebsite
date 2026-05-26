@@ -1,79 +1,60 @@
 import { Link } from 'react-router-dom'
+import { projects } from '../data/projects'
 import './Home.css'
 
-// TODO: Add in trailers for PMG and Netherlands conference.
-// TODO: Add social media content.
-// Each category card links to a page.
-// Currently using custom images placed in the /public folder.
-// To switch back to YouTube thumbnails, comment out the `image` field
-// and uncomment the `youtubeId` field, then swap the CategoryCard
-// img src back to the YouTube thumbnail URL (see comment in CategoryCard below).
-
-const categories = [
-  {
-    to: '/trailers-promos',
-    label: 'Trailers & Promos',
-    // image: '/trailersThumbnail.png',
-    youtubeId: 'cHsNJwXd2r4',
-  },
-  {
-    to: '/social-short-form',
-    label: 'Social & Short Form',
-    // image: '/socialThumbnail.png',
-    youtubeId: 'b_ORalcozsU',
-  },
-  {
-    to: '/narrative-documentary',
-    label: 'Narrative & Documentary',
-    // image: '/narrativeThumbnail.png',
-    youtubeId: '4rte6B5TyT0',
-  },
-  {
-    to: '/ai',
-    label: 'AI',
-    image: '/aiThumbnail.png',
-    // youtubeId: 'TQgcGvrH9lE',
-  },
-]
-
-function CategoryCard({ to, label, image, youtubeId }) {
-  // To switch back to YouTube thumbnails, replace the `src` below with:
-  // src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`} (or src={image} to use custom images) and make sure to pass the `youtubeId` field in the categories array above.
-  // and update the function signature to accept { to, label, youtubeId }
-  return (
-    <Link to={to} className="category-card">
-      <img src={image ? image : `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`} alt={label} className="category-card__img" loading="lazy" />
-      <div className="category-card__overlay">
-        <span className="category-card__label">{label}</span>
-        <span className="category-card__arrow">→</span>
-      </div>
-    </Link>
-  )
-}
+// TODO (Max): Tweak the hero eyebrow / headline copy below if you want
+// different positioning. Current framing leans full-stack/web.
 
 export default function Home() {
+  // Show the first 4 projects as a preview on the landing.
+  const featured = projects.slice(0, 4)
+
   return (
     <div className="home">
       {/* Hero */}
       <section className="home__hero">
         <div className="home__hero-inner">
-          <p className="home__eyebrow">Filmmaker · Editor · Creator</p>
+          <p className="home__eyebrow">Software Developer · Web Developer</p>
           <h1 className="home__headline">
             MAX BASSETT<br />
             <span className="home__headline-accent">CREATIVE</span>
           </h1>
           <div className="accent-line" />
-          <Link to="/contact" className="home__cta">Get in Touch</Link>
+          <p className="home__tagline">
+            I build fast, well-crafted websites and web tools for small
+            businesses and growing teams.
+          </p>
+          <div className="home__cta-row">
+            <Link to="/software-dev" className="home__cta">View Work</Link>
+            <Link to="/contact" className="home__cta home__cta--ghost">Get in Touch</Link>
+          </div>
         </div>
       </section>
 
-      {/* Category grid */}
-      <section className="home__categories">
-        <div className="home__categories-inner">
-          <p className="home__section-label">Browse by Category</p>
-          <div className="home__grid">
-            {categories.map(cat => (
-              <CategoryCard key={cat.to} {...cat} />
+      {/* Featured work preview */}
+      <section className="home__work">
+        <div className="home__work-inner">
+          <div className="home__work-head">
+            <p className="home__section-label">Selected Work</p>
+            <Link to="/software-dev" className="home__work-all">All Work →</Link>
+          </div>
+          <div className="home__work-grid">
+            {featured.map((p) => (
+              <Link key={p.slug} to={`/software-dev/${p.slug}`} className="home__work-card">
+                <div className="home__work-card-img-wrap">
+                  <div className="home__work-card-placeholder" aria-hidden="true">
+                    {p.title}
+                  </div>
+                  <img
+                    src={p.image}
+                    alt={p.title}
+                    className="home__work-card-img"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
+                </div>
+                <span className="home__work-card-title">{p.title}</span>
+              </Link>
             ))}
           </div>
         </div>

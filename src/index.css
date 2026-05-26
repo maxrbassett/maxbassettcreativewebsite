@@ -1,24 +1,19 @@
 /* ============================================================
    DESIGN TOKENS
-   To change the accent color across the entire site,
-   update --color-accent below. That's the only change needed.
+   - The accent color (--color-accent) carries across both themes.
+   - Light theme is the default; dark theme activates via
+     [data-theme="dark"] on the <html> element.
+   - Initial theme is set by an inline script in index.html so
+     there's no flash on load.
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
 
 :root {
-  /* === ACCENT COLOR — change this one value to retheme the site === */
+  /* === ACCENT (shared by both themes) === */
   --color-accent: #F05A1A;
   --color-accent-hover: #D44D12;
   --color-accent-dim: rgba(240, 90, 26, 0.15);
-
-  /* === NEUTRALS === */
-  --color-bg: #0A0A0A;
-  --color-surface: #141414;
-  --color-surface-2: #1E1E1E;
-  --color-border: #2A2A2A;
-  --color-text-primary: #F0EDE8;
-  --color-text-muted: #888888;
 
   /* === TYPOGRAPHY === */
   --font-display: 'Bebas Neue', sans-serif;
@@ -26,6 +21,27 @@
 
   /* === SPACING === */
   --nav-height: 72px;
+
+  /* === LIGHT THEME (default) === */
+  --color-bg: #F5F2EC;
+  --color-bg-scrim: rgba(245, 242, 236, 0.92);
+  --color-surface: #FFFFFF;
+  --color-surface-2: #EBE7DE;
+  --color-border: #DCD6CB;
+  --color-text-primary: #161616;
+  --color-text-muted: #6B6B6B;
+  --color-input-placeholder: #A8A39A;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0A0A0A;
+  --color-bg-scrim: rgba(10, 10, 10, 0.92);
+  --color-surface: #141414;
+  --color-surface-2: #1E1E1E;
+  --color-border: #2A2A2A;
+  --color-text-primary: #F0EDE8;
+  --color-text-muted: #888888;
+  --color-input-placeholder: #444;
 }
 
 *, *::before, *::after {
@@ -45,6 +61,7 @@ body {
   font-weight: 300;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a {

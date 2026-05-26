@@ -1,5 +1,5 @@
 import './About.css'
-import maxProfile from '../assets/maxProfile.jpeg'
+import maxProfile from '../assets/maxProfile2.jpg'
 
 export default function About() {
   return (
@@ -18,19 +18,32 @@ export default function About() {
         {/* Bio */}
         <div className="about__bio">
           <h2 className="about__name">Max Bassett</h2>
+          {/*
+            TODO (Max): Update the bio paragraphs below. Lead with software dev
+            since that's the current focus; mention video work as a side
+            practice. Keep it 2–4 sentences — short and punchy works best.
+          */}
           <p className="about__text">
-            {/*
-              Replace this placeholder text with your own bio.
-              Keep it 2–4 sentences — short and punchy works best on a portfolio.
-            */}
-            I'm a filmmaker and video editor based in [Your City]. I create
-            everything from high-energy trailers and promo reels to intimate
-            documentary films and social content — and lately, I've been pushing
-            into the world of AI-generated cinema.
+            I'm a software developer based in Lancaster, South Carolina. I build web apps,
+            sites, and internal tools — combining clean engineering with
+            careful attention to design and user experience. I currently work as a Senior Full-stack
+            Developer at Chicago Venture Partners and assist in the software development for 
+            their portfolio companies, including Typenex Medical, a medical device company supplying 
+            hospitals, clinics, and surgery centers with the tools they need to provide better care. 
+            I also work as a freelance web developer for small businesses and growing teams.
           </p>
-          <p className="about__text">
-            With a background in [your background], I bring both technical
-            precision and a genuine love of storytelling to every project.
+          {/* <p className="about__text">
+            On the side, I'm a filmmaker and video editor, creating
+            trailers, social content, documentary pieces, and AI-driven
+            cinema. Reach out if you're interested in seeing some of my work! 
+            You can see that work in the{' '}
+             <a href="/videography" style={{ color: 'var(--color-accent)' }}>
+               videography section
+             </a>. 
+          </p> --- IGNORE --- */}
+           <p className="about__text">
+            I'm always interested in connecting with new people and learning about interesting projects. 
+            If you'd like to chat, feel free to reach out!
           </p>
           <a href="/contact" className="about__cta">
             Get in Touch <span>→</span>
