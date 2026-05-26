@@ -9,7 +9,7 @@
 }
 
 .navbar--scrolled {
-  background: rgba(10, 10, 10, 0.92);
+  background: var(--color-bg-scrim);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
 }
@@ -47,11 +47,36 @@
   margin-top: 1px;
 }
 
+/* Right-side group (nav + theme toggle + hamburger) */
+.navbar__right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
 /* Desktop links */
 .navbar__links {
   display: flex;
   align-items: center;
   gap: 32px;
+}
+
+/* Theme toggle */
+.navbar__theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.navbar__theme-toggle:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .navbar__link {

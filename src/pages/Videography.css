@@ -103,7 +103,9 @@
   font-family: var(--font-display);
   font-size: clamp(1.4rem, 3vw, 2.2rem);
   letter-spacing: 0.06em;
-  color: var(--color-text-primary);
+  /* Always white — sits on top of a darkened image, so contrast must hold
+     in both themes. */
+  color: #fff;
   line-height: 1;
 }
 

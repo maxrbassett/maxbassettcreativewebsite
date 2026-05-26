@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import './Home.css'
+import './Videography.css'
 
 // TODO: Add in trailers for PMG and Netherlands conference.
 // TODO: Add social media content.
@@ -51,7 +51,7 @@ function CategoryCard({ to, label, image, youtubeId }) {
   )
 }
 
-export default function Home() {
+export default function Videography() {
   return (
     <div className="home">
       {/* Hero */}

@@ -73,7 +73,7 @@
 }
 
 .contact__input::placeholder {
-  color: #444;
+  color: var(--color-input-placeholder);
 }
 
 .contact__input:focus {
