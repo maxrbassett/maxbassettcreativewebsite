@@ -16,7 +16,7 @@ export const projects = [
   {
     slug: 'artchi',
     title: 'Emerging Artists Chicago',
-    url: 'https://artchi.com',
+    url: 'https://artchi.org',
     image: '/dev/artchi.png',
     year: '',
     role: 'Lead Developer',

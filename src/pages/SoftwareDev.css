@@ -100,6 +100,27 @@
   transform: translateX(0);
 }
 
+/* On touch devices, disable the hover treatment entirely: images render at
+   full brightness without scaling, the title stays in its default color
+   without scaling, and the "View Case" arrow is hidden since tapping the
+   card itself is the affordance. */
+@media (hover: none) {
+  .project-card__img {
+    filter: none;
+  }
+  .project-card:hover .project-card__img {
+    transform: none;
+    filter: none;
+  }
+  .project-card:hover .project-card__title {
+    transform: none;
+    color: var(--color-text-primary);
+  }
+  .project-card__arrow {
+    display: none;
+  }
+}
+
 /* Internal tools section */
 .internal-tools {
   margin-top: 96px;
