@@ -25,26 +25,15 @@
 }
 
 /* Logo */
-.navbar__logo-placeholder {
-  display: flex;
-  flex-direction: column;
-  line-height: 1;
+.navbar__logo {
+  display: inline-flex;
+  align-items: center;
 }
 
-.navbar__logo-text {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  letter-spacing: 0.1em;
-  color: var(--color-text-primary);
-}
-
-.navbar__logo-sub {
-  font-family: var(--font-body);
-  font-size: 0.6rem;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: var(--color-accent);
-  margin-top: 1px;
+.navbar__logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
 }
 
 /* Right-side group (nav + theme toggle + hamburger) */

@@ -92,10 +92,11 @@ export default function Navbar() {
       <div className="navbar__inner">
         {/* Logo */}
         <Link to={logoHome} className="navbar__logo" onClick={handleNavClick}>
-          <div className="navbar__logo-placeholder">
-            <span className="navbar__logo-text">MAX BASSETT</span>
-            <span className="navbar__logo-sub">CREATIVE</span>
-          </div>
+          <img
+            src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'}
+            alt="Max Bassett Creative"
+            className="navbar__logo-img"
+          />
         </Link>
 
         <div className="navbar__right">
