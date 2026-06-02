@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { KeyboardControls, useGLTF, useAnimations, Sky } from '@react-three/drei'
 import { Physics, RigidBody, CylinderCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
@@ -228,9 +228,65 @@ function BoundaryGuard({ bodyRef, radius = ISLAND_RADIUS - 1, spawn = [0, 3, 0],
   return null
 }
 
+/* Drag-to-look layer on top of FixedCamera. Listens for pointer drags on the
+ * 3D canvas (the joystick/jump/UI are separate DOM elements above it, so they
+ * don't trigger look) and calls ecctrl's rotateCamera. While dragging it
+ * reports `looking` so the parent can set fixedCamRotMult=0 (pausing the
+ * auto-recenter); on release the camera eases back behind the character.
+ * rotateCamera(xPitch, yYaw); signs match ecctrl's native drag feel. */
+const LOOK_SENS = 0.005
+
+function CameraDragControls({ characterRef, onLookingChange }) {
+  const gl = useThree((s) => s.gl)
+
+  useEffect(() => {
+    const el = gl.domElement
+    let activeId = null
+    let lastX = 0
+    let lastY = 0
+
+    const onDown = (e) => {
+      if (activeId !== null) return
+      activeId = e.pointerId
+      lastX = e.clientX
+      lastY = e.clientY
+      el.setPointerCapture?.(e.pointerId)
+      onLookingChange(true)
+    }
+    const onMove = (e) => {
+      if (e.pointerId !== activeId) return
+      const dx = e.clientX - lastX
+      const dy = e.clientY - lastY
+      lastX = e.clientX
+      lastY = e.clientY
+      characterRef.current?.rotateCamera?.(dy * LOOK_SENS, -dx * LOOK_SENS)
+    }
+    const onUp = (e) => {
+      if (e.pointerId !== activeId) return
+      activeId = null
+      el.releasePointerCapture?.(e.pointerId)
+      onLookingChange(false)
+    }
+
+    el.addEventListener('pointerdown', onDown)
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerup', onUp)
+    el.addEventListener('pointercancel', onUp)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerup', onUp)
+      el.removeEventListener('pointercancel', onUp)
+    }
+  }, [gl, characterRef, onLookingChange])
+
+  return null
+}
+
 export default function Scene() {
   const characterRef = useRef(null)
   const panelOpen = useExplore((s) => s.active != null)
+  const [looking, setLooking] = useState(false)
   return (
     <>
       <Sky sunPosition={[40, 25, 30]} turbidity={6} rayleigh={1.2} />
@@ -269,8 +325,13 @@ export default function Scene() {
             // Always run at the former sprint speed (4 × default sprint 2).
             maxVelLimit={8}
             sprintMult={1}
-            // Keep the camera behind the character as it turns (RPG feel).
+            // Hybrid camera: FixedCamera keeps it locked behind the character
+            // (turning stays behind, movement reads "into the screen").
+            // CameraDragControls lets you drag to look; while dragging we set
+            // fixedCamRotMult=0 so auto-recenter doesn't fight the drag, then
+            // restore it so the camera eases back behind on release.
             mode="FixedCamera"
+            fixedCamRotMult={looking ? 0 : 1}
             // Follow-camera: angled down from above, moderately close.
             camInitDis={-6}
             camMaxDis={-10}
@@ -281,6 +342,9 @@ export default function Scene() {
               <CharacterModel position={[0, -0.94, 0]} scale={0.95} />
             </CharacterAnimation>
           </Ecctrl>
+
+          {/* Drag-to-look on top of the locked-behind FixedCamera. */}
+          <CameraDragControls characterRef={characterRef} onLookingChange={setLooking} />
 
           {/* Floating island + code-enforced circular boundary (with fall
               failsafe) so you can't leave the island. */}

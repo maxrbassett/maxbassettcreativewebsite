@@ -75,8 +75,8 @@ export default function ExplorePage() {
       {/* Persistent movement hint. */}
       <div className="explore-hint">
         {isTouch
-          ? 'Drag the joystick to move · tap the button to jump'
-          : 'WASD or arrow keys to move · Space to jump'}
+          ? 'Joystick to move · drag screen to look · button to jump'
+          : 'WASD / arrows to move · drag to look · Space to jump'}
       </div>
 
       <Link to="/" className="explore-exit" aria-label="Exit the 3D world">
@@ -96,12 +96,14 @@ export default function ExplorePage() {
             <ul className="explore-card__controls">
               {isTouch ? (
                 <>
-                  <li><strong>Move</strong> — drag the joystick (bottom-left)</li>
-                  <li><strong>Jump</strong> — tap the button (bottom-right)</li>
+                  <li><strong>Move</strong> — joystick (bottom-left)</li>
+                  <li><strong>Look</strong> — drag anywhere else</li>
+                  <li><strong>Jump</strong> — button (bottom-right)</li>
                 </>
               ) : (
                 <>
                   <li><strong>Move</strong> — W A S D or arrow keys</li>
+                  <li><strong>Look</strong> — click and drag</li>
                   <li><strong>Jump</strong> — Space</li>
                 </>
               )}
