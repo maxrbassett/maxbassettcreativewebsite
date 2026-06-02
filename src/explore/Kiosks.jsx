@@ -12,7 +12,7 @@ function Kiosk({ data }) {
   const screenTex = useTexture(data.project.image)
 
   return (
-    <group position={data.position}>
+    <group position={data.position} rotation={[0, data.rotationY || 0, 0]}>
       <RigidBody type="fixed" colliders="cuboid">
         {/* base */}
         <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
