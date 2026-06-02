@@ -4,6 +4,8 @@ import { Loader } from '@react-three/drei'
 import { Link } from 'react-router-dom'
 import Scene from './Scene'
 import TouchControls from './TouchControls'
+import InteractionOverlay from './InteractionOverlay'
+import { useExplore } from './useExplore'
 import './explore.css'
 
 /* ------------------------------------------------------------------
@@ -34,6 +36,7 @@ function hasWebGL() {
 export default function ExplorePage() {
   const [supported] = useState(hasWebGL)
   const [started, setStarted] = useState(false)
+  const panelOpen = useExplore((s) => s.active != null)
 
   // No WebGL → never show a blank canvas; send them back to the real site.
   if (!supported) {
@@ -53,8 +56,12 @@ export default function ExplorePage() {
 
   return (
     <div className="explore-root">
-      {/* Mobile joystick must render outside the R3F Canvas. */}
-      {isTouch && <TouchControls />}
+      {/* Mobile joystick must render outside the R3F Canvas. Hidden while a
+          content panel is open so it doesn't sit on top of the panel. */}
+      {isTouch && !panelOpen && <TouchControls />}
+
+      {/* Proximity prompt / interact button / content panel */}
+      <InteractionOverlay isTouch={isTouch} />
 
       <Canvas shadows camera={{ position: [0, 4, 8], fov: 50 }}>
         <Suspense fallback={null}>
@@ -83,8 +90,8 @@ export default function ExplorePage() {
             <p className="explore-card__eyebrow">An experiment</p>
             <h1 className="explore-card__title">Explore the World</h1>
             <p className="explore-card__text">
-              Wander a 3D world to discover my work. This is an early preview —
-              right now you can just walk around.
+              Wander a floating world to discover my work. Walk up to a glowing
+              kiosk to view a project.
             </p>
             <ul className="explore-card__controls">
               {isTouch ? (

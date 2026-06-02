@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { KeyboardControls, useGLTF, useAnimations, Sky, Grid } from '@react-three/drei'
-import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
+import { KeyboardControls, useGLTF, useAnimations, Sky } from '@react-three/drei'
+import { Physics, RigidBody, CylinderCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
 import Ecctrl, { useGame } from 'ecctrl'
+import { useExplore } from './useExplore'
+import { Kiosks, ProximityDetector } from './Kiosks'
 
 /* ------------------------------------------------------------------
  * STEP 1 SPIKE SCENE
@@ -44,7 +46,6 @@ const keyboardMap = [
   { name: 'rightward', keys: ['ArrowRight', 'KeyD'] },
   { name: 'jump', keys: ['Space'] },
   { name: 'run', keys: ['Shift'] },
-  { name: 'action1', keys: ['KeyE'] },
 ]
 
 function CharacterModel(props) {
@@ -163,29 +164,73 @@ function CharacterAnimation({ characterURL, animationSet, children }) {
   )
 }
 
-// Temporary gray-box landmarks so movement/turning is legible against the
-// empty plane (and to test collision). These get replaced by real island
-// props later. Each y is size/2 so the block sits on the ground.
-const LANDMARKS = [
-  { pos: [6, 1, -4], size: [1.5, 2, 1.5], color: '#F05A1A' },
-  { pos: [-7, 0.75, 3], size: [1.5, 1.5, 1.5], color: '#3a7bd5' },
-  { pos: [3, 1.25, 8], size: [2, 2.5, 2], color: '#f4c542' },
-  { pos: [-5, 1, -8], size: [1, 2, 1], color: '#9b5de5' },
-  { pos: [11, 0.9, 6], size: [1.8, 1.8, 1.8], color: '#2ec4b6' },
-]
+/* ------------------------------------------------------------------
+ * Floating island (Phase 2 gray-box): a grassy top disc the player walks
+ * on, a rocky cone underside for the "floating rock" look, and a ring of
+ * invisible wall colliders around the rim so you can't fall off.
+ * ------------------------------------------------------------------ */
+const ISLAND_RADIUS = 33
+const ISLAND_TOP_Y = 0 // walking surface height
+const ISLAND_THICKNESS = 1.5
 
-function Landmarks() {
-  return LANDMARKS.map((it, i) => (
-    <RigidBody key={i} type="fixed" colliders="cuboid" position={it.pos}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={it.size} />
-        <meshStandardMaterial color={it.color} />
+function FloatingIsland() {
+  return (
+    <RigidBody type="fixed" colliders={false}>
+      {/* Grassy top */}
+      <mesh receiveShadow position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}>
+        <cylinderGeometry args={[ISLAND_RADIUS, ISLAND_RADIUS, ISLAND_THICKNESS, 48]} />
+        <meshStandardMaterial color="#a7d8a0" />
+      </mesh>
+      <CylinderCollider
+        args={[ISLAND_THICKNESS / 2, ISLAND_RADIUS]}
+        position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}
+      />
+      {/* Rocky underside (visual only), apex pointing down */}
+      <mesh position={[0, ISLAND_TOP_Y - 11.5, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[ISLAND_RADIUS - 1, 20, 48]} />
+        <meshStandardMaterial color="#8a6b4f" />
       </mesh>
     </RigidBody>
-  ))
+  )
+}
+
+/* Keep the character on the island via a code-enforced circular boundary
+ * (reliable for a round island — no collider tunneling at speed and no
+ * gaps), plus a fall failsafe that respawns at center if anything ever
+ * slips off. Reads ecctrl's physics body through its ref's `.group`. */
+function BoundaryGuard({ bodyRef, radius = ISLAND_RADIUS - 1, spawn = [0, 3, 0], minY = -8 }) {
+  useFrame(() => {
+    const body = bodyRef.current?.group
+    if (!body) return
+    const pos = body.translation()
+
+    // Fall failsafe
+    if (pos.y < minY) {
+      body.setTranslation({ x: spawn[0], y: spawn[1], z: spawn[2] }, true)
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      return
+    }
+
+    // Circular boundary: clamp horizontal distance and remove outward
+    // velocity so it reads as a wall while still allowing sliding along it.
+    const r = Math.hypot(pos.x, pos.z)
+    if (r > radius) {
+      const ox = pos.x / r
+      const oz = pos.z / r
+      body.setTranslation({ x: ox * radius, y: pos.y, z: oz * radius }, true)
+      const v = body.linvel()
+      const outward = v.x * ox + v.z * oz
+      if (outward > 0) {
+        body.setLinvel({ x: v.x - outward * ox, y: v.y, z: v.z - outward * oz }, true)
+      }
+    }
+  })
+  return null
 }
 
 export default function Scene() {
+  const characterRef = useRef(null)
+  const panelOpen = useExplore((s) => s.active != null)
   return (
     <>
       <Sky sunPosition={[40, 25, 30]} turbidity={6} rayleigh={1.2} />
@@ -204,27 +249,21 @@ export default function Scene() {
         shadow-camera-bottom={-30}
       />
 
-      {/* Reference grid so motion is readable on the flat plane. */}
-      <Grid
-        position={[0, 0.02, 0]}
-        args={[80, 80]}
-        cellSize={1}
-        cellThickness={0.6}
-        cellColor="#6f9e6a"
-        sectionSize={5}
-        sectionThickness={1.1}
-        sectionColor="#3f6b3a"
-        fadeDistance={55}
-        fadeStrength={1}
-        infiniteGrid={false}
-      />
+      {/* Sea of clouds far below, so the island reads as floating in the
+          sky. A simple large disc for now; volumetric clouds come in the
+          art pass (Phase 5). */}
+      <mesh position={[0, -22, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[1000, 64]} />
+        <meshBasicMaterial color="#eef6ff" />
+      </mesh>
 
       <Physics timeStep="vary">
         <KeyboardControls map={keyboardMap}>
-          <Landmarks />
           <Ecctrl
+            ref={characterRef}
             animated
             followLight
+            disableControl={panelOpen}
             floatHeight={0.3}
             position={[0, 2, 0]}
             // Always run at the former sprint speed (4 × default sprint 2).
@@ -243,15 +282,14 @@ export default function Scene() {
             </CharacterAnimation>
           </Ecctrl>
 
-          {/* Ground platform (gray-box). colliders={false} + explicit
-              CuboidCollider keeps the physics shape simple and cheap. */}
-          <RigidBody type="fixed" colliders={false}>
-            <mesh receiveShadow position={[0, -0.05, 0]}>
-              <boxGeometry args={[80, 0.1, 80]} />
-              <meshStandardMaterial color="#a7d8a0" />
-            </mesh>
-            <CuboidCollider args={[40, 0.05, 40]} />
-          </RigidBody>
+          {/* Floating island + code-enforced circular boundary (with fall
+              failsafe) so you can't leave the island. */}
+          <FloatingIsland />
+          <BoundaryGuard bodyRef={characterRef} />
+
+          {/* Interactive kiosks + proximity detection */}
+          <Kiosks />
+          <ProximityDetector bodyRef={characterRef} />
         </KeyboardControls>
       </Physics>
     </>
