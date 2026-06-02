@@ -2,14 +2,14 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture, Float } from '@react-three/drei'
 import { RigidBody } from '@react-three/rapier'
-import { INTERACTABLES } from './interactables'
+import { INTERACTABLES, interactableTitle, interactableImage } from './interactables'
 import { useExplore } from './useExplore'
 
-/* A gray-box "monitor on a stand" kiosk. The screen shows the project
- * screenshot as a preview (a thumbnail, not the real content — that lives in
- * the HTML overlay panel). A floating orb marks it as interactive. */
+/* A gray-box "monitor on a stand" kiosk. The screen shows a preview image
+ * (project screenshot or video-category thumbnail — not the real content,
+ * which lives in the HTML overlay panel). A floating orb marks it interactive. */
 function Kiosk({ data }) {
-  const screenTex = useTexture(data.project.image)
+  const screenTex = useTexture(interactableImage(data))
 
   return (
     <group position={data.position} rotation={[0, data.rotationY || 0, 0]}>
@@ -77,7 +77,7 @@ export function ProximityDetector({ bodyRef }) {
     const id = found ? found.id : null
     if (id !== lastId.current) {
       lastId.current = id
-      setNearby(found ? { id: found.id, title: found.project.title } : null)
+      setNearby(found ? { id: found.id, title: interactableTitle(found) } : null)
     }
   })
 

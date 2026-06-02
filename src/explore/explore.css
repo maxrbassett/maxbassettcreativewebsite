@@ -300,6 +300,17 @@
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
 }
+/* Video-category panel: wider to hold the 2/3-col VideoGrid, and the title
+   gets breathing room since there's no image header above it. */
+.explore-panel--video {
+  max-width: 920px;
+}
+.explore-panel--video .explore-panel__body {
+  padding-top: 28px;
+}
+.explore-panel--video .explore-panel__title {
+  margin-bottom: 22px;
+}
 .explore-panel__close {
   position: absolute;
   top: 12px;

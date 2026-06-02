@@ -1,6 +1,26 @@
 import { useEffect } from 'react'
 import { useExplore } from './useExplore'
 import { INTERACTABLES } from './interactables'
+import VideoGrid from '../components/VideoGrid'
+
+function VideoPanel({ category, onClose }) {
+  return (
+    <div className="explore-panel-backdrop" onClick={onClose}>
+      <div
+        className="explore-panel explore-panel--video"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className="explore-panel__close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+        <div className="explore-panel__body">
+          <h2 className="explore-panel__title">{category.label}</h2>
+          <VideoGrid videos={category.videos} vertical={category.vertical} />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ProjectPanel({ project, onClose }) {
   return (
@@ -49,7 +69,7 @@ export default function InteractionOverlay({ isTouch }) {
     const cur = useExplore.getState().nearby
     if (!cur) return
     const it = INTERACTABLES.find((i) => i.id === cur.id)
-    if (it) open(it.project)
+    if (it) open(it)
   }
 
   // Desktop: E to open the nearby kiosk, Esc to close an open panel.
@@ -79,7 +99,12 @@ export default function InteractionOverlay({ isTouch }) {
           </div>
         )
       )}
-      {active && <ProjectPanel project={active} onClose={close} />}
+      {active &&
+        (active.type === 'videoCategory' ? (
+          <VideoPanel category={active.category} onClose={close} />
+        ) : (
+          <ProjectPanel project={active.project} onClose={close} />
+        ))}
     </>
   )
 }
