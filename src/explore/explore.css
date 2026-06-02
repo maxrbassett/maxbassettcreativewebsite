@@ -1,0 +1,238 @@
+/* ============================================================
+   STEP 1 SPIKE — 3D explore overlay
+   Full-screen layer above the normal site chrome. Reuses the
+   site's design tokens so it feels on-brand.
+   ============================================================ */
+
+.explore-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: linear-gradient(#bfe6ff, #e9f6ef);
+  overflow: hidden;
+  /* Stop mobile drags from scrolling/zooming the page behind the canvas. */
+  touch-action: none;
+  user-select: none;
+}
+
+/* Only style the canvas for display; do NOT force its size. R3F sizes its
+   own main canvas to the full-screen container, and forcing 100% here would
+   also stretch EcctrlJoystick's separate joystick/button canvases full-screen
+   and break their touch hit-areas. */
+.explore-root canvas {
+  display: block;
+}
+
+/* --- Movement hint --- */
+.explore-hint {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1050;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.6);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 600px) {
+  .explore-hint {
+    font-size: 0.7rem;
+    bottom: 12px;
+    max-width: 92vw;
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+/* --- Exit button --- */
+.explore-exit {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1050;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.6);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s ease;
+}
+.explore-exit:hover {
+  background: var(--color-accent);
+}
+
+/* --- Intro card --- */
+.explore-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.explore-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px;
+  border-radius: 16px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary, #161616);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.explore-card__eyebrow {
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+}
+
+.explore-card__title {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  margin-bottom: 14px;
+}
+
+.explore-card__text {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--color-text-muted, #6b6b6b);
+  margin-bottom: 20px;
+}
+
+.explore-card__controls {
+  list-style: none;
+  text-align: left;
+  display: inline-block;
+  margin: 0 auto 24px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.9;
+}
+.explore-card__controls strong {
+  display: inline-block;
+  min-width: 54px;
+  color: var(--color-accent);
+}
+
+.explore-card__btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease;
+}
+.explore-card__btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.explore-card__skip {
+  display: inline-block;
+  margin-top: 14px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #6b6b6b);
+  text-decoration: underline;
+}
+
+/* --- Mobile touch controls --- */
+.touch-joystick {
+  position: fixed;
+  bottom: 32px;
+  left: 32px;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  z-index: 1200;
+  touch-action: none;
+  backdrop-filter: blur(2px);
+}
+.touch-joystick__knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  /* transform is driven by JS; default is centered (0,0) */
+}
+
+.touch-jump {
+  position: fixed;
+  bottom: 44px;
+  right: 36px;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(240, 90, 26, 0.85);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  z-index: 1200;
+  touch-action: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.touch-jump:active {
+  background: var(--color-accent-hover);
+}
+
+/* --- WebGL fallback --- */
+.explore-fallback {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+  padding: 40px;
+  background: var(--color-bg, #f5f2ec);
+}
+.explore-fallback h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: 0.03em;
+}
+.explore-fallback p {
+  font-family: var(--font-body);
+  max-width: 460px;
+  color: var(--color-text-muted, #6b6b6b);
+}
+.explore-fallback__link {
+  font-family: var(--font-body);
+  color: var(--color-accent);
+  font-weight: 500;
+}
