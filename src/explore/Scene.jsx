@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { KeyboardControls, useGLTF, useAnimations, Sky } from '@react-three/drei'
-import { Physics, RigidBody, CylinderCollider } from '@react-three/rapier'
+import { Physics, RigidBody, CylinderCollider, CuboidCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
 import Ecctrl, { useGame } from 'ecctrl'
@@ -165,64 +165,140 @@ function CharacterAnimation({ characterURL, animationSet, children }) {
 }
 
 /* ------------------------------------------------------------------
- * Floating island (Phase 2 gray-box): a grassy top disc the player walks
- * on, a rocky cone underside for the "floating rock" look, and a ring of
- * invisible wall colliders around the rim so you can't fall off.
+ * Archipelago (Phase 3 gray-box). Islands are grassy discs with rocky
+ * cone undersides; bridges are flat stone walkways. The Software Dev
+ * island stays at the origin (its kiosks are placed in world space); the
+ * hub sits to the +z side, linked by a bridge that overlaps both island
+ * edges so the walkable region is seamless.
  * ------------------------------------------------------------------ */
-const ISLAND_RADIUS = 33
 const ISLAND_TOP_Y = 0 // walking surface height
 const ISLAND_THICKNESS = 1.5
 
-function FloatingIsland() {
+const DEV_RADIUS = 33
+const HUB_POS = [0, 0, 75]
+const HUB_RADIUS = 18
+// Stone bridge along z, overlapping both island edges (dev edge z≈33,
+// hub edge z≈57) so there's no seam in the walkable area.
+const BRIDGE = { halfWidth: 3, minZ: 30, maxZ: 60 }
+const SPAWN = [0, 2.5, 75] // on the hub
+
+// Walkable zones for the boundary guard (with a small inset margin so the
+// player stops just shy of each visible edge). "Safe" = inside any zone.
+const ZONES = [
+  { type: 'circle', cx: 0, cz: 0, r: DEV_RADIUS - 1 },
+  { type: 'circle', cx: HUB_POS[0], cz: HUB_POS[2], r: HUB_RADIUS - 1 },
+  { type: 'rect', minX: -BRIDGE.halfWidth + 0.4, maxX: BRIDGE.halfWidth - 0.4, minZ: BRIDGE.minZ, maxZ: BRIDGE.maxZ },
+]
+
+function Island({ position = [0, 0, 0], radius = DEV_RADIUS, color = '#a7d8a0' }) {
+  const coneHeight = radius * 0.6
+  return (
+    <group position={position}>
+      <RigidBody type="fixed" colliders={false}>
+        {/* Grassy top */}
+        <mesh receiveShadow position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}>
+          <cylinderGeometry args={[radius, radius, ISLAND_THICKNESS, 48]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        <CylinderCollider
+          args={[ISLAND_THICKNESS / 2, radius]}
+          position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}
+        />
+        {/* Rocky underside (visual only), apex pointing down */}
+        <mesh
+          position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS - coneHeight / 2, 0]}
+          rotation={[Math.PI, 0, 0]}
+        >
+          <coneGeometry args={[radius - 1, coneHeight, 48]} />
+          <meshStandardMaterial color="#8a6b4f" />
+        </mesh>
+      </RigidBody>
+    </group>
+  )
+}
+
+function Bridge() {
+  const length = BRIDGE.maxZ - BRIDGE.minZ
+  const midZ = (BRIDGE.minZ + BRIDGE.maxZ) / 2
+  const width = BRIDGE.halfWidth * 2
+  // Lift the deck slightly above the island surface so the overlapping
+  // ends don't z-fight with the islands' coplanar tops.
+  const lift = 0.08
+  const deckY = ISLAND_TOP_Y + lift - 0.2
+  const railY = ISLAND_TOP_Y + lift + 0.3
   return (
     <RigidBody type="fixed" colliders={false}>
-      {/* Grassy top */}
-      <mesh receiveShadow position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}>
-        <cylinderGeometry args={[ISLAND_RADIUS, ISLAND_RADIUS, ISLAND_THICKNESS, 48]} />
-        <meshStandardMaterial color="#a7d8a0" />
+      {/* Deck — top sits just above the island surface */}
+      <mesh receiveShadow position={[0, deckY, midZ]}>
+        <boxGeometry args={[width, 0.4, length]} />
+        <meshStandardMaterial color="#9a9690" />
       </mesh>
-      <CylinderCollider
-        args={[ISLAND_THICKNESS / 2, ISLAND_RADIUS]}
-        position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}
-      />
-      {/* Rocky underside (visual only), apex pointing down */}
-      <mesh position={[0, ISLAND_TOP_Y - 11.5, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[ISLAND_RADIUS - 1, 20, 48]} />
-        <meshStandardMaterial color="#8a6b4f" />
+      <CuboidCollider args={[BRIDGE.halfWidth, 0.2, length / 2]} position={[0, deckY, midZ]} />
+      {/* Low side rails (visual only) so the edges read clearly */}
+      <mesh position={[BRIDGE.halfWidth - 0.1, railY, midZ]} castShadow>
+        <boxGeometry args={[0.2, 0.6, length]} />
+        <meshStandardMaterial color="#7a766f" />
+      </mesh>
+      <mesh position={[-BRIDGE.halfWidth + 0.1, railY, midZ]} castShadow>
+        <boxGeometry args={[0.2, 0.6, length]} />
+        <meshStandardMaterial color="#7a766f" />
       </mesh>
     </RigidBody>
   )
 }
 
-/* Keep the character on the island via a code-enforced circular boundary
- * (reliable for a round island — no collider tunneling at speed and no
- * gaps), plus a fall failsafe that respawns at center if anything ever
- * slips off. Reads ecctrl's physics body through its ref's `.group`. */
-function BoundaryGuard({ bodyRef, radius = ISLAND_RADIUS - 1, spawn = [0, 3, 0], minY = -8 }) {
+/* Keep the player within the walkable zones (islands + bridge). "Safe" if
+ * inside any zone; otherwise clamp to the nearest zone's edge (reads as an
+ * invisible wall, no collider tunneling at speed). Fall failsafe respawns
+ * at the hub. Reads ecctrl's physics body through its ref's `.group`. */
+function zoneContains(z, x, zz) {
+  if (z.type === 'circle') return Math.hypot(x - z.cx, zz - z.cz) <= z.r
+  return x >= z.minX && x <= z.maxX && zz >= z.minZ && zz <= z.maxZ
+}
+function zoneClamp(z, x, zz) {
+  if (z.type === 'circle') {
+    const dx = x - z.cx
+    const dz = zz - z.cz
+    const d = Math.hypot(dx, dz) || 1e-6
+    return { x: z.cx + (dx / d) * z.r, z: z.cz + (dz / d) * z.r, dist: d - z.r }
+  }
+  const cx = Math.min(Math.max(x, z.minX), z.maxX)
+  const cz = Math.min(Math.max(zz, z.minZ), z.maxZ)
+  return { x: cx, z: cz, dist: Math.hypot(x - cx, zz - cz) }
+}
+
+function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
   useFrame(() => {
     const body = bodyRef.current?.group
     if (!body) return
     const pos = body.translation()
 
-    // Fall failsafe
+    // Fall failsafe → respawn at the hub
     if (pos.y < minY) {
       body.setTranslation({ x: spawn[0], y: spawn[1], z: spawn[2] }, true)
       body.setLinvel({ x: 0, y: 0, z: 0 }, true)
       return
     }
 
-    // Circular boundary: clamp horizontal distance and remove outward
-    // velocity so it reads as a wall while still allowing sliding along it.
-    const r = Math.hypot(pos.x, pos.z)
-    if (r > radius) {
-      const ox = pos.x / r
-      const oz = pos.z / r
-      body.setTranslation({ x: ox * radius, y: pos.y, z: oz * radius }, true)
-      const v = body.linvel()
-      const outward = v.x * ox + v.z * oz
-      if (outward > 0) {
-        body.setLinvel({ x: v.x - outward * ox, y: v.y, z: v.z - outward * oz }, true)
-      }
+    // Safe if inside any walkable zone
+    for (const z of ZONES) if (zoneContains(z, pos.x, pos.z)) return
+
+    // Otherwise clamp to the nearest zone edge and stop horizontal motion
+    let best = null
+    for (const z of ZONES) {
+      const c = zoneClamp(z, pos.x, pos.z)
+      if (!best || c.dist < best.dist) best = c
+    }
+    body.setTranslation({ x: best.x, y: pos.y, z: best.z }, true)
+    // Remove only the OUTWARD velocity component, so you can still move
+    // inward and slide along the edge instead of getting glued to it.
+    const d = best.dist || 1e-6
+    const ox = (pos.x - best.x) / d
+    const oz = (pos.z - best.z) / d
+    const v = body.linvel()
+    const outward = v.x * ox + v.z * oz
+    if (outward > 0) {
+      body.setLinvel({ x: v.x - outward * ox, y: v.y, z: v.z - outward * oz }, true)
     }
   })
   return null
@@ -321,7 +397,7 @@ export default function Scene() {
             followLight
             disableControl={panelOpen}
             floatHeight={0.3}
-            position={[0, 2, 0]}
+            position={SPAWN}
             // Always run at the former sprint speed (4 × default sprint 2).
             maxVelLimit={8}
             sprintMult={1}
@@ -346,9 +422,12 @@ export default function Scene() {
           {/* Drag-to-look on top of the locked-behind FixedCamera. */}
           <CameraDragControls characterRef={characterRef} onLookingChange={setLooking} />
 
-          {/* Floating island + code-enforced circular boundary (with fall
-              failsafe) so you can't leave the island. */}
-          <FloatingIsland />
+          {/* Archipelago: Software Dev island (origin) + hub, linked by a
+              bridge. The zone-based boundary guard keeps you on the walkable
+              area (islands + bridge) and respawns you at the hub if you fall. */}
+          <Island position={[0, 0, 0]} radius={DEV_RADIUS} />
+          <Island position={HUB_POS} radius={HUB_RADIUS} color="#b3d99b" />
+          <Bridge />
           <BoundaryGuard bodyRef={characterRef} />
 
           {/* Interactive kiosks + proximity detection */}
