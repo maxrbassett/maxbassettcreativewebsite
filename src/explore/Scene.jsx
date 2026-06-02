@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { KeyboardControls, useGLTF, useAnimations, Sky } from '@react-three/drei'
+import { KeyboardControls, useGLTF, useAnimations, Sky, Html } from '@react-three/drei'
 import { Physics, RigidBody, CylinderCollider, CuboidCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
@@ -165,32 +165,78 @@ function CharacterAnimation({ characterURL, animationSet, children }) {
 }
 
 /* ------------------------------------------------------------------
- * Archipelago (Phase 3 gray-box). Islands are grassy discs with rocky
- * cone undersides; bridges are flat stone walkways. The Software Dev
- * island stays at the origin (its kiosks are placed in world space); the
- * hub sits to the +z side, linked by a bridge that overlaps both island
- * edges so the walkable region is seamless.
+ * Archipelago (Phase 3 gray-box), data-driven. Islands are grassy discs
+ * with rocky cone undersides; bridges are flat stone walkways linking the
+ * hub to each section island along an axis. The Software Dev island stays
+ * at the origin (its kiosks live in world space). Adding or moving a
+ * section is just editing ISLANDS / BRIDGE_LINKS below.
  * ------------------------------------------------------------------ */
 const ISLAND_TOP_Y = 0 // walking surface height
 const ISLAND_THICKNESS = 1.5
+const BRIDGE_HALF_WIDTH = 3
+const BRIDGE_OVERLAP = 3 // how far each bridge end sinks into its island
 
-const DEV_RADIUS = 33
-const HUB_POS = [0, 0, 75]
-const HUB_RADIUS = 18
-// Stone bridge along z, overlapping both island edges (dev edge z≈33,
-// hub edge z≈57) so there's no seam in the walkable area.
-const BRIDGE = { halfWidth: 3, minZ: 30, maxZ: 60 }
+// Radii scale with how much each island holds: Dev (5 kiosks) is biggest;
+// About/Contact (one thing each) are small. Positions give each bridge a
+// reasonable length given the differing radii.
+const ISLANDS = [
+  { id: 'hub', position: [0, 0, 75], radius: 16, color: '#b3d99b', label: 'Hub', labelY: 11 },
+  { id: 'dev', position: [0, 0, 0], radius: 33, color: '#a7d8a0', label: 'Software Dev', labelY: 18 },
+  { id: 'video', position: [72, 0, 75], radius: 26, color: '#9ec9e8', label: 'Videography', labelY: 6, billboard: true },
+  { id: 'about', position: [-56, 0, 75], radius: 14, color: '#e6c98a', label: 'About', labelY: 6, billboard: true },
+  { id: 'contact', position: [0, 0, 125], radius: 12, color: '#d8a8d4', label: 'Contact', labelY: 6, billboard: true },
+]
+const BRIDGE_LINKS = [
+  ['hub', 'dev'],
+  ['hub', 'video'],
+  ['hub', 'about'],
+  ['hub', 'contact'],
+]
 const SPAWN = [0, 2.5, 75] // on the hub
 
-// Walkable zones for the boundary guard (with a small inset margin so the
-// player stops just shy of each visible edge). "Safe" = inside any zone.
+const islandById = (id) => ISLANDS.find((i) => i.id === id)
+
+// Build an axis-aligned bridge between two islands that share one axis.
+// Returns deck params + the walkable rect zone, overlapping both islands.
+function makeBridge(aId, bId) {
+  const a = islandById(aId)
+  const b = islandById(bId)
+  const dx = b.position[0] - a.position[0]
+  const dz = b.position[2] - a.position[2]
+  const hw = BRIDGE_HALF_WIDTH
+  if (Math.abs(dx) >= Math.abs(dz)) {
+    const s = Math.sign(dx)
+    const start = a.position[0] + s * (a.radius - BRIDGE_OVERLAP)
+    const end = b.position[0] - s * (b.radius - BRIDGE_OVERLAP)
+    const minX = Math.min(start, end)
+    const maxX = Math.max(start, end)
+    const cz = a.position[2]
+    return {
+      axis: 'x', cx: (minX + maxX) / 2, cz, length: maxX - minX,
+      zone: { type: 'rect', minX, maxX, minZ: cz - hw + 0.4, maxZ: cz + hw - 0.4 },
+    }
+  }
+  const s = Math.sign(dz)
+  const start = a.position[2] + s * (a.radius - BRIDGE_OVERLAP)
+  const end = b.position[2] - s * (b.radius - BRIDGE_OVERLAP)
+  const minZ = Math.min(start, end)
+  const maxZ = Math.max(start, end)
+  const cx = a.position[0]
+  return {
+    axis: 'z', cx, cz: (minZ + maxZ) / 2, length: maxZ - minZ,
+    zone: { type: 'rect', minX: cx - hw + 0.4, maxX: cx + hw - 0.4, minZ, maxZ },
+  }
+}
+
+const BRIDGES = BRIDGE_LINKS.map(([a, b]) => makeBridge(a, b))
+
+// Walkable zones: each island as a circle (inset margin) + each bridge rect.
 const ZONES = [
-  { type: 'circle', cx: 0, cz: 0, r: DEV_RADIUS - 1 },
-  { type: 'circle', cx: HUB_POS[0], cz: HUB_POS[2], r: HUB_RADIUS - 1 },
-  { type: 'rect', minX: -BRIDGE.halfWidth + 0.4, maxX: BRIDGE.halfWidth - 0.4, minZ: BRIDGE.minZ, maxZ: BRIDGE.maxZ },
+  ...ISLANDS.map((i) => ({ type: 'circle', cx: i.position[0], cz: i.position[2], r: i.radius - 1 })),
+  ...BRIDGES.map((b) => b.zone),
 ]
 
-function Island({ position = [0, 0, 0], radius = DEV_RADIUS, color = '#a7d8a0' }) {
+function Island({ position, radius, color }) {
   const coneHeight = radius * 0.6
   return (
     <group position={position}>
@@ -217,33 +263,80 @@ function Island({ position = [0, 0, 0], radius = DEV_RADIUS, color = '#a7d8a0' }
   )
 }
 
-function Bridge() {
-  const length = BRIDGE.maxZ - BRIDGE.minZ
-  const midZ = (BRIDGE.minZ + BRIDGE.maxZ) / 2
-  const width = BRIDGE.halfWidth * 2
+function Bridge({ axis, cx, cz, length }) {
   // Lift the deck slightly above the island surface so the overlapping
   // ends don't z-fight with the islands' coplanar tops.
   const lift = 0.08
   const deckY = ISLAND_TOP_Y + lift - 0.2
   const railY = ISLAND_TOP_Y + lift + 0.3
+  const width = BRIDGE_HALF_WIDTH * 2
+  const deckArgs = axis === 'x' ? [length, 0.4, width] : [width, 0.4, length]
+  const railArgs = axis === 'x' ? [length, 0.6, 0.2] : [0.2, 0.6, length]
+  const off = BRIDGE_HALF_WIDTH - 0.1
+  const rail1 = axis === 'x' ? [cx, railY, cz + off] : [cx + off, railY, cz]
+  const rail2 = axis === 'x' ? [cx, railY, cz - off] : [cx - off, railY, cz]
   return (
     <RigidBody type="fixed" colliders={false}>
       {/* Deck — top sits just above the island surface */}
-      <mesh receiveShadow position={[0, deckY, midZ]}>
-        <boxGeometry args={[width, 0.4, length]} />
+      <mesh receiveShadow position={[cx, deckY, cz]}>
+        <boxGeometry args={deckArgs} />
         <meshStandardMaterial color="#9a9690" />
       </mesh>
-      <CuboidCollider args={[BRIDGE.halfWidth, 0.2, length / 2]} position={[0, deckY, midZ]} />
+      <CuboidCollider args={[deckArgs[0] / 2, 0.2, deckArgs[2] / 2]} position={[cx, deckY, cz]} />
       {/* Low side rails (visual only) so the edges read clearly */}
-      <mesh position={[BRIDGE.halfWidth - 0.1, railY, midZ]} castShadow>
-        <boxGeometry args={[0.2, 0.6, length]} />
+      <mesh position={rail1} castShadow>
+        <boxGeometry args={railArgs} />
         <meshStandardMaterial color="#7a766f" />
       </mesh>
-      <mesh position={[-BRIDGE.halfWidth + 0.1, railY, midZ]} castShadow>
-        <boxGeometry args={[0.2, 0.6, length]} />
+      <mesh position={rail2} castShadow>
+        <boxGeometry args={railArgs} />
         <meshStandardMaterial color="#7a766f" />
       </mesh>
     </RigidBody>
+  )
+}
+
+// Giant futuristic billboard marking a section island: a sleek pole with a
+// glowing emissive screen that faces back toward the hub. The island name
+// (IslandLabel) sits on the screen.
+function Billboard({ position, color, rotationY = 0 }) {
+  return (
+    <group position={[position[0], 0, position[2]]} rotation={[0, rotationY, 0]}>
+      {/* support pole */}
+      <mesh position={[0, 2.4, 0]} castShadow>
+        <cylinderGeometry args={[0.18, 0.26, 4.8, 8]} />
+        <meshStandardMaterial color="#3a3f47" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {/* screen frame */}
+      <mesh position={[0, 6, 0]} castShadow>
+        <boxGeometry args={[6.6, 3.6, 0.5]} />
+        <meshStandardMaterial color="#23262b" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* glowing screen — emissive, shown on both faces */}
+      <mesh position={[0, 6, 0.27]}>
+        <planeGeometry args={[6, 3]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.9} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 6, -0.27]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[6, 3]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.9} toneMapped={false} />
+      </mesh>
+    </group>
+  )
+}
+
+// Floating signpost text (uses the site's display font via DOM). zIndexRange
+// keeps it below the UI overlays (prompt, joystick, panel).
+function IslandLabel({ position, y, text }) {
+  return (
+    <Html
+      position={[position[0], y, position[2]]}
+      center
+      zIndexRange={[100, 0]}
+      className="explore-island-label"
+    >
+      {text}
+    </Html>
   )
 }
 
@@ -422,12 +515,27 @@ export default function Scene() {
           {/* Drag-to-look on top of the locked-behind FixedCamera. */}
           <CameraDragControls characterRef={characterRef} onLookingChange={setLooking} />
 
-          {/* Archipelago: Software Dev island (origin) + hub, linked by a
-              bridge. The zone-based boundary guard keeps you on the walkable
-              area (islands + bridge) and respawns you at the hub if you fall. */}
-          <Island position={[0, 0, 0]} radius={DEV_RADIUS} />
-          <Island position={HUB_POS} radius={HUB_RADIUS} color="#b3d99b" />
-          <Bridge />
+          {/* Archipelago: hub + section islands linked by bridges. The
+              zone-based boundary guard keeps you on the walkable area and
+              respawns you at the hub if you ever fall. */}
+          {ISLANDS.map((i) => (
+            <Island key={i.id} position={i.position} radius={i.radius} color={i.color} />
+          ))}
+          {BRIDGES.map((b, idx) => (
+            <Bridge key={idx} {...b} />
+          ))}
+          {ISLANDS.filter((i) => i.billboard).map((i) => {
+            const hub = islandById('hub')
+            const rotationY = Math.atan2(
+              hub.position[0] - i.position[0],
+              hub.position[2] - i.position[2]
+            )
+            return <Billboard key={i.id} position={i.position} color={i.color} rotationY={rotationY} />
+          })}
+          {!panelOpen &&
+            ISLANDS.map((i) => (
+              <IslandLabel key={i.id} position={i.position} y={i.labelY} text={i.label} />
+            ))}
           <BoundaryGuard bodyRef={characterRef} />
 
           {/* Interactive kiosks + proximity detection */}

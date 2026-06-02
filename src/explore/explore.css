@@ -209,6 +209,18 @@
   background: var(--color-accent-hover);
 }
 
+/* --- Floating island signpost labels --- */
+.explore-island-label {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* --- Interaction prompt (desktop) --- */
 .explore-prompt {
   position: fixed;
