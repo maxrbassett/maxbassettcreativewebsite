@@ -1,16 +1,22 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture, Float } from '@react-three/drei'
-import { RigidBody } from '@react-three/rapier'
 import { INTERACTABLES, interactableTitle, interactableImage } from './interactables'
+import { SCREEN_CENTER_Y } from './worldLayout'
 import { useExplore } from './useExplore'
 
-// Screen face, split in two so the texture hook is never called conditionally:
-// a textured preview when the kiosk has a screenshot, else a solid emissive
-// "terminal" screen (fallback for any kiosk without a preview image).
-const SCREEN_POS = [0, 2.8, 0.14]
-const SCREEN_ARGS = [4.0, 2.35]
+/* Wall-mounted TV screens (the museum exhibits). Each is a flat framed panel
+ * fixed to a museum's interior wall, facing the room center; the screen shows
+ * a preview image (project shot / video thumbnail) — the real content
+ * lives in the HTML overlay panel. A floating orb marks it interactive.
+ *
+ * No colliders: screens sit just outside the walkable boundary, so the
+ * BoundaryGuard already stops the player before reaching them. */
+const SCREEN_POS = [0, SCREEN_CENTER_Y, 0.13]
+const SCREEN_ARGS = [4.2, 2.5]
 
+// Screen face split in two so the texture hook is never called conditionally:
+// a textured preview when the kiosk has an image, else a solid emissive panel.
 function TexturedScreen({ src }) {
   const tex = useTexture(src)
   return (
@@ -30,39 +36,21 @@ function ColorScreen({ color = '#cda6e6' }) {
   )
 }
 
-/* A gray-box "monitor on a stand" kiosk. The screen shows a preview image
- * (project screenshot or video-category thumbnail — not the real content,
- * which lives in the HTML overlay panel). A floating orb marks it interactive. */
 function Kiosk({ data }) {
   const img = interactableImage(data)
-
   return (
     <group position={data.position} rotation={[0, data.rotationY || 0, 0]}>
-      <RigidBody type="fixed" colliders="cuboid">
-        {/* base */}
-        <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.8, 0.2, 1.2]} />
-          <meshStandardMaterial color="#2a2a2a" />
-        </mesh>
-        {/* stand */}
-        <mesh position={[0, 1.0, 0]} castShadow>
-          <boxGeometry args={[0.5, 1.8, 0.5]} />
-          <meshStandardMaterial color="#3a3a3a" />
-        </mesh>
-        {/* monitor frame */}
-        <mesh position={[0, 2.8, 0]} castShadow>
-          <boxGeometry args={[4.4, 2.8, 0.25]} />
-          <meshStandardMaterial color="#161616" />
-        </mesh>
-      </RigidBody>
-
-      {/* Screen preview — faces +z (local), rotated to greet the player */}
+      {/* Framed panel mounted flush on the wall (faces local +z, into the room) */}
+      <mesh position={[0, SCREEN_CENTER_Y, 0]} castShadow>
+        <boxGeometry args={[4.6, 3.0, 0.22]} />
+        <meshStandardMaterial color="#141414" metalness={0.3} roughness={0.6} />
+      </mesh>
       {img ? <TexturedScreen src={img} /> : <ColorScreen />}
 
-      {/* Floating interact indicator */}
-      <Float speed={3} floatIntensity={1.2} rotationIntensity={0.8}>
-        <mesh position={[0, 5.2, 0]} castShadow>
-          <octahedronGeometry args={[0.4, 0]} />
+      {/* Floating interact indicator above the screen */}
+      <Float speed={3} floatIntensity={0.9} rotationIntensity={0.7}>
+        <mesh position={[0, SCREEN_CENTER_Y + 2.0, 0]} castShadow>
+          <octahedronGeometry args={[0.32, 0]} />
           <meshStandardMaterial color="#F05A1A" emissive="#F05A1A" emissiveIntensity={0.7} />
         </mesh>
       </Float>

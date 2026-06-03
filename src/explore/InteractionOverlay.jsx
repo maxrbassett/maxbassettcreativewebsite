@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useExplore } from './useExplore'
 import { INTERACTABLES } from './interactables'
-import VideoGrid from '../components/VideoGrid'
 
 function AboutPanel({ about, onClose }) {
   return (
@@ -28,7 +27,7 @@ function AboutPanel({ about, onClose }) {
   )
 }
 
-function VideoPanel({ category, onClose }) {
+function VideoPlayerPanel({ video, onClose }) {
   return (
     <div className="explore-panel-backdrop" onClick={onClose}>
       <div
@@ -39,8 +38,15 @@ function VideoPanel({ category, onClose }) {
           ✕
         </button>
         <div className="explore-panel__body">
-          <h2 className="explore-panel__title">{category.label}</h2>
-          <VideoGrid videos={category.videos} vertical={category.vertical} />
+          <h2 className="explore-panel__title">{video.title}</h2>
+          <div className="explore-video-embed">
+            <iframe
+              src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1`}
+              title={video.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -125,8 +131,8 @@ export default function InteractionOverlay({ isTouch }) {
         )
       )}
       {active &&
-        (active.type === 'videoCategory' ? (
-          <VideoPanel category={active.category} onClose={close} />
+        (active.type === 'video' ? (
+          <VideoPlayerPanel video={active.video} onClose={close} />
         ) : active.type === 'about' ? (
           <AboutPanel about={active.about} onClose={close} />
         ) : (

@@ -1,68 +1,64 @@
 import { projects } from '../data/projects'
 import {
   trailersPromos,
-  socialShortForm,
   narrativeDocumentary,
   aiVideos,
 } from '../data/videos'
 import maxProfile from '../assets/maxProfile2.jpg'
+import { wallSlots } from './worldLayout'
 
-/* Interactive kiosks placed in the world. Each entry has a `type` that tells
- * InteractionOverlay which content panel to render on walk-up:
- *   - 'project'       → a software-dev project (linked `project` from projects.js)
- *   - 'videoCategory' → a video category (linked `category` from videos.js)
- *   - 'about'         → bio + photo + get-in-touch panel (`about`)
+/* Interactive wall-mounted screens inside the museum islands. Each entry has a
+ * `type` that tells InteractionOverlay which content panel to render on
+ * walk-up:
+ *   - 'project' → a software-dev project (linked `project` from projects.js)
+ *   - 'video'   → a single YouTube video (linked `video`); walk-up plays it in
+ *                 an iframe popup
+ *   - 'about'   → bio + photo + get-in-touch panel (`about`)
  *
- * `position` is world-space, `rotationY` faces the screen toward the player,
- * `radius` is how close (world units) the player must be for the prompt.
+ * Positions/rotations are NOT hand-placed — `wallSlots` distributes each
+ * island's screens around its interior wall (facing the room center), so they
+ * stay correct automatically if an island moves or resizes. `radius` is the
+ * walk-up proximity distance.
  */
 const bySlug = (slug) => projects.find((p) => p.slug === slug)
+const PROXIMITY = 5
 
-/* --- Software Dev island (origin) ---
- * A ~144° arc in front of spawn (radius 15), each rotated to face the island
- * center so the screen greets you as you approach.
- *   position = [15·sinβ, 0, -15·cosβ],  rotationY = -β  (β = -72°..+72°). */
-const devKiosks = [
-  { id: 'typenex', position: [0, 0, -15], rotationY: 0, radius: 5, project: bySlug('typenex') },
-  { id: 'artchi', position: [-8.8, 0, -12.1], rotationY: 0.63, radius: 5, project: bySlug('artchi') },
-  { id: 'timpine-therapy', position: [8.8, 0, -12.1], rotationY: -0.63, radius: 5, project: bySlug('timpine-therapy') },
-  { id: 'chicago-venture', position: [-14.3, 0, -4.6], rotationY: 1.26, radius: 5, project: bySlug('chicago-venture') },
-  { id: 'emergent-trading', position: [14.3, 0, -4.6], rotationY: -1.26, radius: 5, project: bySlug('emergent-trading') },
-].map((k) => ({ ...k, type: 'project' }))
+// --- Software Dev museum: 5 project screens around the wall ---
+const devSlugs = ['typenex', 'artchi', 'timpine-therapy', 'chicago-venture', 'emergent-trading']
+const devSlots = wallSlots('dev', devSlugs.length)
+const devKiosks = devSlugs.map((slug, i) => ({
+  id: slug,
+  type: 'project',
+  radius: PROXIMITY,
+  position: devSlots[i].position,
+  rotationY: devSlots[i].rotationY,
+  project: bySlug(slug),
+}))
 
-/* --- Videography island (center [54,0,75], radius 26) ---
- * The west bridge lands the player at world ~[31,75]; these 4 screens fan
- * across the island's inner half, each rotated to face that entrance so the
- * player walks into a welcoming arc of category screens. (The whole fan is
- * the original layout shifted -18 on x with the island; rotations are
- * unchanged since each screen's offset from the entrance is preserved.) */
-const videoKiosks = [
-  {
-    id: 'video-trailers', position: [47.5, 0, 83.9], rotationY: -2.07, radius: 5,
-    category: { label: 'Trailers & Promos', thumbnail: '/trailersThumbnail.png', videos: trailersPromos },
-  },
-  {
-    id: 'video-social', position: [43.5, 0, 78.4], rotationY: -1.84, radius: 5,
-    category: { label: 'Social & Short Form', thumbnail: '/socialThumbnail.png', videos: socialShortForm, vertical: true },
-  },
-  {
-    id: 'video-narrative', position: [43.5, 0, 71.6], rotationY: -1.30, radius: 5,
-    category: { label: 'Narrative & Documentary', thumbnail: '/narrativeThumbnail.png', videos: narrativeDocumentary },
-  },
-  {
-    id: 'video-ai', position: [47.5, 0, 66.1], rotationY: -1.08, radius: 5,
-    category: { label: 'AI', thumbnail: '/aiThumbnail.png', videos: aiVideos },
-  },
-].map((k) => ({ ...k, type: 'videoCategory' }))
+// --- Videography museum: one screen per horizontal video, around the wall.
+// (The 16:9 categories — trailers, narrative, AI; the vertical Social/Short
+// Form set is omitted here since the wall screens are horizontal.) Walk-up
+// plays the video in an iframe popup. ---
+const horizontalVideos = [...trailersPromos, ...narrativeDocumentary, ...aiVideos]
+const videoSlots = wallSlots('video', horizontalVideos.length)
+const videoKiosks = horizontalVideos.map((v, i) => ({
+  id: `vid-${v.youtubeId}`, // youtubeId is unique; some data `id`s repeat
+  type: 'video',
+  radius: PROXIMITY,
+  position: videoSlots[i].position,
+  rotationY: videoSlots[i].rotationY,
+  video: { youtubeId: v.youtubeId, title: v.title },
+}))
 
-/* --- About island (center [-40,0,75], radius 14) ---
- * One merged stop: bio + photo + a get-in-touch section (Contact folded in
- * here since both pages are thin). Bridge lands the player on the east side
- * (~world [-29,75]) walking -x, so the screen sits just past center and faces
- * +x toward the entrance. Bio text mirrors src/pages/About.jsx; contactText
- * mirrors src/pages/Contact.jsx (keep in sync if those change). */
+// --- About museum: one merged stop (bio + photo + get-in-touch). Bio text
+// mirrors src/pages/About.jsx; contactText mirrors src/pages/Contact.jsx. ---
+const aboutSlot = wallSlots('about', 1)[0]
 const aboutKiosk = {
-  id: 'about', type: 'about', position: [-42, 0, 75], rotationY: Math.PI / 2, radius: 5,
+  id: 'about',
+  type: 'about',
+  radius: PROXIMITY,
+  position: aboutSlot.position,
+  rotationY: aboutSlot.rotationY,
   about: {
     name: 'Max Bassett',
     photo: maxProfile,
@@ -76,11 +72,11 @@ const aboutKiosk = {
 
 export const INTERACTABLES = [...devKiosks, ...videoKiosks, aboutKiosk]
 
-/* Type-agnostic accessors so the in-world kiosk (screen texture + proximity
- * label) doesn't need to branch on type. */
+/* Type-agnostic accessors so the in-world screen (texture + proximity label)
+ * doesn't need to branch on type. */
 export const interactableTitle = (it) => {
   switch (it.type) {
-    case 'videoCategory': return it.category.label
+    case 'video': return it.video.title
     case 'about': return 'About Max'
     default: return it.project.title
   }
@@ -88,7 +84,7 @@ export const interactableTitle = (it) => {
 
 export const interactableImage = (it) => {
   switch (it.type) {
-    case 'videoCategory': return it.category.thumbnail
+    case 'video': return `https://img.youtube.com/vi/${it.video.youtubeId}/hqdefault.jpg`
     case 'about': return it.about.photo
     default: return it.project.image
   }

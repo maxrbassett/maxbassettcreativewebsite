@@ -209,18 +209,6 @@
   background: var(--color-accent-hover);
 }
 
-/* --- Floating island signpost labels --- */
-.explore-island-label {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  letter-spacing: 0.08em;
-  color: #fff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-}
-
 /* --- Interaction prompt (desktop) --- */
 .explore-prompt {
   position: fixed;
@@ -300,8 +288,8 @@
   border-radius: 16px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
 }
-/* Video-category panel: wider to hold the 2/3-col VideoGrid, and the title
-   gets breathing room since there's no image header above it. */
+/* Video player panel: wider to hold the 16:9 embed, and the title gets
+   breathing room since there's no image header above it. */
 .explore-panel--video {
   max-width: 920px;
 }
@@ -310,6 +298,22 @@
 }
 .explore-panel--video .explore-panel__title {
   margin-bottom: 22px;
+}
+/* Responsive 16:9 iframe for the in-world video player. */
+.explore-video-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.explore-video-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 /* "Get in Touch" subhead in the merged About panel — sets the contact
    section apart from the bio above it. */

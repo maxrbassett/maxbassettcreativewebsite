@@ -1,12 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { KeyboardControls, useGLTF, useAnimations, Sky, Html, Clouds, Cloud } from '@react-three/drei'
+import { KeyboardControls, useGLTF, useAnimations, Sky, Text, Clouds, Cloud } from '@react-three/drei'
 import { Physics, RigidBody, CylinderCollider, CuboidCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
 import Ecctrl, { useGame } from 'ecctrl'
 import { useExplore } from './useExplore'
 import { Kiosks, ProximityDetector } from './Kiosks'
+import { WorldDecor } from './Decor'
+import { Museums } from './Architecture'
+import {
+  ISLAND_TOP_Y,
+  ISLAND_THICKNESS,
+  BRIDGE_HALF_WIDTH,
+  ISLANDS,
+  SPAWN,
+  islandById,
+  BRIDGES,
+  ZONES,
+  BUILDING_THEME,
+} from './worldLayout'
 
 /* ------------------------------------------------------------------
  * STEP 1 SPIKE SCENE
@@ -164,78 +177,9 @@ function CharacterAnimation({ characterURL, animationSet, children }) {
   )
 }
 
-/* ------------------------------------------------------------------
- * Archipelago (Phase 3 gray-box), data-driven. Islands are grassy discs
- * with rocky cone undersides; bridges are flat stone walkways linking the
- * hub to each section island along an axis. The Software Dev island stays
- * at the origin (its kiosks live in world space). Adding or moving a
- * section is just editing ISLANDS / BRIDGE_LINKS below.
- * ------------------------------------------------------------------ */
-const ISLAND_TOP_Y = 0 // walking surface height
-const ISLAND_THICKNESS = 1.5
-const BRIDGE_HALF_WIDTH = 3
-const BRIDGE_OVERLAP = 3 // how far each bridge end sinks into its island
-
-// Radii scale with how much each island holds: Dev (5 kiosks) is biggest;
-// About (one merged stop) is small. Dev stays at the origin; Video and About
-// are pulled in close to the hub so their bridges stay short (~half the
-// length they'd have at the islands' full reach).
-const ISLANDS = [
-  { id: 'hub', position: [0, 0, 75], radius: 16, color: '#b3d99b', label: 'Hub' },
-  { id: 'dev', position: [0, 0, 0], radius: 33, color: '#a7d8a0', label: 'Software Dev' },
-  { id: 'video', position: [54, 0, 75], radius: 26, color: '#9ec9e8', label: 'Videography' },
-  { id: 'about', position: [-40, 0, 75], radius: 14, color: '#e6c98a', label: 'About' },
-]
-const BRIDGE_LINKS = [
-  ['hub', 'dev'],
-  ['hub', 'video'],
-  ['hub', 'about'],
-]
-const SPAWN = [0, 2.5, 75] // on the hub
-
-const islandById = (id) => ISLANDS.find((i) => i.id === id)
-
-// Build an axis-aligned bridge between two islands that share one axis.
-// Returns deck params + the walkable rect zone, overlapping both islands.
-function makeBridge(aId, bId) {
-  const a = islandById(aId)
-  const b = islandById(bId)
-  const dx = b.position[0] - a.position[0]
-  const dz = b.position[2] - a.position[2]
-  const hw = BRIDGE_HALF_WIDTH
-  if (Math.abs(dx) >= Math.abs(dz)) {
-    const s = Math.sign(dx)
-    const start = a.position[0] + s * (a.radius - BRIDGE_OVERLAP)
-    const end = b.position[0] - s * (b.radius - BRIDGE_OVERLAP)
-    const minX = Math.min(start, end)
-    const maxX = Math.max(start, end)
-    const cz = a.position[2]
-    return {
-      axis: 'x', cx: (minX + maxX) / 2, cz, length: maxX - minX,
-      from: aId, to: bId, hubEnd: [start, 0, cz], // `start` is the a-side (hub) end
-      zone: { type: 'rect', minX, maxX, minZ: cz - hw + 0.4, maxZ: cz + hw - 0.4 },
-    }
-  }
-  const s = Math.sign(dz)
-  const start = a.position[2] + s * (a.radius - BRIDGE_OVERLAP)
-  const end = b.position[2] - s * (b.radius - BRIDGE_OVERLAP)
-  const minZ = Math.min(start, end)
-  const maxZ = Math.max(start, end)
-  const cx = a.position[0]
-  return {
-    axis: 'z', cx, cz: (minZ + maxZ) / 2, length: maxZ - minZ,
-    from: aId, to: bId, hubEnd: [cx, 0, start], // `start` is the a-side (hub) end
-    zone: { type: 'rect', minX: cx - hw + 0.4, maxX: cx + hw - 0.4, minZ, maxZ },
-  }
-}
-
-const BRIDGES = BRIDGE_LINKS.map(([a, b]) => makeBridge(a, b))
-
-// Walkable zones: each island as a circle (inset margin) + each bridge rect.
-const ZONES = [
-  ...ISLANDS.map((i) => ({ type: 'circle', cx: i.position[0], cz: i.position[2], r: i.radius - 1 })),
-  ...BRIDGES.map((b) => b.zone),
-]
+/* Islands, bridges, walkable zones, and museum/door geometry all come from the
+ * shared worldLayout module (imported above), so Scene, Architecture, and
+ * interactables agree on a single layout. */
 
 function Island({ position, radius, color }) {
   const coneHeight = radius * 0.6
@@ -265,78 +209,84 @@ function Island({ position, radius, color }) {
 }
 
 function Bridge({ axis, cx, cz, length }) {
-  // Lift the deck slightly above the island surface so the overlapping
-  // ends don't z-fight with the islands' coplanar tops.
+  // Just the walkable deck now — the side walls + ceiling are the covered
+  // tunnel (Architecture's BridgeTunnel). Lift slightly above the island
+  // surface so the overlapping ends don't z-fight with the coplanar tops.
   const lift = 0.08
   const deckY = ISLAND_TOP_Y + lift - 0.2
-  const railY = ISLAND_TOP_Y + lift + 0.3
   const width = BRIDGE_HALF_WIDTH * 2
   const deckArgs = axis === 'x' ? [length, 0.4, width] : [width, 0.4, length]
-  const railArgs = axis === 'x' ? [length, 0.6, 0.2] : [0.2, 0.6, length]
-  const off = BRIDGE_HALF_WIDTH - 0.1
-  const rail1 = axis === 'x' ? [cx, railY, cz + off] : [cx + off, railY, cz]
-  const rail2 = axis === 'x' ? [cx, railY, cz - off] : [cx - off, railY, cz]
   return (
     <RigidBody type="fixed" colliders={false}>
-      {/* Deck — top sits just above the island surface */}
       <mesh receiveShadow position={[cx, deckY, cz]}>
         <boxGeometry args={deckArgs} />
         <meshStandardMaterial color="#9a9690" />
       </mesh>
       <CuboidCollider args={[deckArgs[0] / 2, 0.2, deckArgs[2] / 2]} position={[cx, deckY, cz]} />
-      {/* Low side rails (visual only) so the edges read clearly */}
-      <mesh position={rail1} castShadow>
-        <boxGeometry args={railArgs} />
-        <meshStandardMaterial color="#7a766f" />
-      </mesh>
-      <mesh position={rail2} castShadow>
-        <boxGeometry args={railArgs} />
-        <meshStandardMaterial color="#7a766f" />
-      </mesh>
     </RigidBody>
   )
 }
 
-// Placeholder gateway at a bridge's hub-side entrance: two posts straddling
-// the walkway + a lintel, with a DOM label naming the destination page. The
-// posts sit just outside the walkable zone (no collider needed — you walk
-// through the middle). zIndexRange keeps the label below the UI overlays.
-// Gray-box for now; styled archways come in the Phase 5 art pass.
-function Archway({ hubEnd, axis, label, showLabel }) {
+// Stone gateway at a bridge's hub-side entrance: two chunky posts flanking the
+// tunnel mouth + a thick lintel, with the destination name engraved into the
+// stone (real 3D Text on both faces, so it reads coming and going) instead of
+// a floating DOM label. Posts sit just outside the walkable zone (no collider
+// needed — you walk through the middle).
+function Archway({ hubEnd, axis, label, color = '#332f29' }) {
   const [x, , z] = hubEnd
-  const off = BRIDGE_HALF_WIDTH + 0.3 // post offset from walkway center
-  const postH = 5
-  const beamY = postH + 0.2
-  const thick = 0.5
-  // Posts straddle the axis perpendicular to the bridge; beam spans the gap.
-  const post1 = axis === 'x' ? [x, postH / 2, z + off] : [x + off, postH / 2, z]
-  const post2 = axis === 'x' ? [x, postH / 2, z - off] : [x - off, postH / 2, z]
-  const beamLen = off * 2 + thick
-  const beamArgs = axis === 'x' ? [thick, 0.6, beamLen] : [beamLen, 0.6, thick]
+  const postThick = 1.2
+  const postH = 5 // matches the tunnel height
+  const off = BRIDGE_HALF_WIDTH + postThick / 2 // inner faces flank the tunnel mouth
+  const lintelH = 2.0
+  const lintelDepth = 1.5
+  const lintelY = postH + lintelH / 2
+  const span = off * 2 + postThick // full width across the posts
+
+  // The tunnel runs along `axis`; posts straddle the perpendicular axis.
+  const postA = axis === 'x' ? [x, postH / 2, z + off] : [x + off, postH / 2, z]
+  const postB = axis === 'x' ? [x, postH / 2, z - off] : [x - off, postH / 2, z]
+  const lintelArgs = axis === 'x' ? [lintelDepth, lintelH, span] : [span, lintelH, lintelDepth]
+
+  // Title floats just proud of each lintel face: white letters with a
+  // building-colored outline (`color`) for legibility + color-coding. Front
+  // face toward the hub, back face toward the building, so it reads both ways.
+  const faceOff = lintelDepth / 2 + 0.03
+  const faces = axis === 'x'
+    ? [{ pos: [x + faceOff, lintelY, z], rotY: Math.PI / 2 }, { pos: [x - faceOff, lintelY, z], rotY: -Math.PI / 2 }]
+    : [{ pos: [x, lintelY, z + faceOff], rotY: 0 }, { pos: [x, lintelY, z - faceOff], rotY: Math.PI }]
+
   return (
     <group>
-      <mesh position={post1} castShadow>
-        <boxGeometry args={[thick, postH, thick]} />
-        <meshStandardMaterial color="#6f6a63" />
+      <mesh position={postA} castShadow receiveShadow>
+        <boxGeometry args={[postThick, postH, postThick]} />
+        <meshStandardMaterial color="#aca596" roughness={1} />
       </mesh>
-      <mesh position={post2} castShadow>
-        <boxGeometry args={[thick, postH, thick]} />
-        <meshStandardMaterial color="#6f6a63" />
+      <mesh position={postB} castShadow receiveShadow>
+        <boxGeometry args={[postThick, postH, postThick]} />
+        <meshStandardMaterial color="#aca596" roughness={1} />
       </mesh>
-      <mesh position={[x, beamY, z]} castShadow>
-        <boxGeometry args={beamArgs} />
-        <meshStandardMaterial color="#5c5851" />
+      <mesh position={[x, lintelY, z]} castShadow receiveShadow>
+        <boxGeometry args={lintelArgs} />
+        <meshStandardMaterial color="#b8b2a5" roughness={1} />
       </mesh>
-      {showLabel && (
-        <Html
-          position={[x, beamY + 0.9, z]}
-          center
-          zIndexRange={[100, 0]}
-          className="explore-island-label"
+      {faces.map((f, i) => (
+        <Text
+          key={i}
+          position={f.pos}
+          rotation={[0, f.rotY, 0]}
+          font="/fonts/BebasNeue-Regular.ttf"
+          fontSize={1.05}
+          letterSpacing={0.04}
+          maxWidth={span - 0.6}
+          anchorX="center"
+          anchorY="middle"
+          color="#ffffff"
+          outlineWidth={0.07}
+          outlineColor={color}
         >
           {label}
-        </Html>
-      )}
+        </Text>
+      ))}
     </group>
   )
 }
@@ -540,7 +490,9 @@ export default function Scene() {
             camInitDis={-6}
             camMaxDis={-10}
             camMinDis={-2}
-            camInitDir={{ x: 0.2, y: 0 }}
+            // Face south on spawn (toward the buildings) — flipped 180° from
+            // the old north-facing default so you look into the world on load.
+            camInitDir={{ x: 0.2, y: Math.PI }}
           >
             <CharacterAnimation characterURL={characterURL} animationSet={animationSet}>
               <CharacterModel position={[0, -0.94, 0]} scale={0.95} />
@@ -556,6 +508,13 @@ export default function Scene() {
           {ISLANDS.map((i) => (
             <Island key={i.id} position={i.position} radius={i.radius} color={i.color} />
           ))}
+
+          {/* Enclosed themed museums (walls + domed roofs + interior light) and
+              covered bridge tunnels. */}
+          <Museums islands={ISLANDS} bridges={BRIDGES} />
+
+          {/* Distant background islets for depth. */}
+          <WorldDecor />
           {BRIDGES.map((b, idx) => (
             <Bridge key={idx} {...b} />
           ))}
@@ -567,7 +526,7 @@ export default function Scene() {
               hubEnd={b.hubEnd}
               axis={b.axis}
               label={islandById(b.to).label}
-              showLabel={!panelOpen}
+              color={BUILDING_THEME[b.to]?.engrave}
             />
           ))}
           <BoundaryGuard bodyRef={characterRef} />
