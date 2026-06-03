@@ -311,6 +311,16 @@
 .explore-panel--video .explore-panel__title {
   margin-bottom: 22px;
 }
+/* "Get in Touch" subhead in the merged About panel — sets the contact
+   section apart from the bio above it. */
+.explore-panel__subhead {
+  margin-top: 26px;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary, #161616);
+}
 .explore-panel__close {
   position: absolute;
   top: 12px;

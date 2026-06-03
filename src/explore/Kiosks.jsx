@@ -5,11 +5,36 @@ import { RigidBody } from '@react-three/rapier'
 import { INTERACTABLES, interactableTitle, interactableImage } from './interactables'
 import { useExplore } from './useExplore'
 
+// Screen face, split in two so the texture hook is never called conditionally:
+// a textured preview when the kiosk has a screenshot, else a solid emissive
+// "terminal" screen (fallback for any kiosk without a preview image).
+const SCREEN_POS = [0, 2.8, 0.14]
+const SCREEN_ARGS = [4.0, 2.35]
+
+function TexturedScreen({ src }) {
+  const tex = useTexture(src)
+  return (
+    <mesh position={SCREEN_POS}>
+      <planeGeometry args={SCREEN_ARGS} />
+      <meshBasicMaterial map={tex} toneMapped={false} />
+    </mesh>
+  )
+}
+
+function ColorScreen({ color = '#cda6e6' }) {
+  return (
+    <mesh position={SCREEN_POS}>
+      <planeGeometry args={SCREEN_ARGS} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} toneMapped={false} />
+    </mesh>
+  )
+}
+
 /* A gray-box "monitor on a stand" kiosk. The screen shows a preview image
  * (project screenshot or video-category thumbnail — not the real content,
  * which lives in the HTML overlay panel). A floating orb marks it interactive. */
 function Kiosk({ data }) {
-  const screenTex = useTexture(interactableImage(data))
+  const img = interactableImage(data)
 
   return (
     <group position={data.position} rotation={[0, data.rotationY || 0, 0]}>
@@ -31,11 +56,8 @@ function Kiosk({ data }) {
         </mesh>
       </RigidBody>
 
-      {/* Screen preview — faces +z, toward a player approaching from spawn */}
-      <mesh position={[0, 2.8, 0.14]}>
-        <planeGeometry args={[4.0, 2.35]} />
-        <meshBasicMaterial map={screenTex} toneMapped={false} />
-      </mesh>
+      {/* Screen preview — faces +z (local), rotated to greet the player */}
+      {img ? <TexturedScreen src={img} /> : <ColorScreen />}
 
       {/* Floating interact indicator */}
       <Float speed={3} floatIntensity={1.2} rotationIntensity={0.8}>

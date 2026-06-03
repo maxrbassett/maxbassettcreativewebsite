@@ -10,7 +10,7 @@ adventurer to explore Max's portfolio. The 3D layer is **navigation only** —
 actual content (projects, videos, bio) renders as **HTML overlay panels**, not
 inside WebGL. The classic 2D site stays the default and fallback.
 
-## Status: Phases 1–3 done. Phase 4 is next.
+## Status: Phases 1–4 done. Phase 5 (art pass) is next.
 Branch: **`feature/explore-3d`** (`main` is untouched). Everything 3D lives
 under `src/explore/` and is lazy-loaded, so the main site bundle is unchanged
 (~76.5 KB gzip); the 3D chunk (~1.2 MB gzip) only loads on `/explore`.
@@ -22,7 +22,7 @@ under `src/explore/` and is lazy-loaded, so the main site bundle is unchanged
 
 ## File map (`src/explore/`)
 - **ExplorePage.jsx** — page shell: WebGL check + graceful fallback, intro card, drei `<Loader>`, the `<Canvas>`, `<TouchControls>` (mobile, hidden when a panel is open), `<InteractionOverlay>`, exit-to-site link. The lazy route is added in `src/App.jsx`.
-- **Scene.jsx** — the 3D world. Contains: lights + `<Sky>` + cloud-sea disc; **data-driven** `ISLANDS` + `BRIDGE_LINKS` → `makeBridge()` builds bridges + walkable `ZONES`; `Island`, `Bridge`, `Billboard`, `IslandLabel` components; `BoundaryGuard` (keeps you in the zones + fall-respawn); `CameraDragControls` (drag-to-look); `Ecctrl` controller; `CharacterModel` (cloned skeleton) + custom `CharacterAnimation`.
+- **Scene.jsx** — the 3D world. Contains: lights + `<Sky>` + cloud-sea disc; **data-driven** `ISLANDS` + `BRIDGE_LINKS` → `makeBridge()` builds bridges + walkable `ZONES`; `Island`, `Bridge`, `IslandLabel` components; `BoundaryGuard` (keeps you in the zones + fall-respawn); `CameraDragControls` (drag-to-look); `Ecctrl` controller; `CharacterModel` (cloned skeleton) + custom `CharacterAnimation`.
 - **Kiosks.jsx** — `Kiosk` (gray-box monitor showing the project screenshot) + `ProximityDetector` (per-frame nearest-interactable check → store).
 - **interactables.js** — `INTERACTABLES` array. Currently the **5 dev project kiosks** (world `position`, `rotationY`, `radius`, linked `project` from `src/data/projects.js`).
 - **InteractionOverlay.jsx** — DOM overlay: desktop "Press E" prompt, mobile **View** button, `ProjectPanel` (renders project image/role/stack/description/visit link), E + Esc key handling.
@@ -44,28 +44,29 @@ under `src/explore/` and is lazy-loaded, so the main site bundle is unchanged
 | id | position | radius | content |
 |----|----------|--------|---------|
 | hub | [0,0,75] | 16 | spawn (`SPAWN=[0,2.5,75]`) |
-| dev | [0,0,0] | 33 | 5 project kiosks (done) |
-| video | [72,0,75] | 26 | **empty — Phase 4** |
-| about | [-56,0,75] | 14 | **empty — Phase 4** |
-| contact | [0,0,125] | 12 | **empty — Phase 4** |
-Bridges connect hub ↔ each island. Islands are sized to their content.
+| dev | [0,0,0] | 33 | 5 project kiosks |
+| video | [54,0,75] | 26 | 4 video-category screens |
+| about | [-40,0,75] | 14 | 1 merged About + Contact stop |
+Bridges connect hub ↔ each island. Video/About sit close to the hub so the
+bridges stay short. **A 4th island slot is open** (north, ~`[0,0,125]`, where
+Contact used to live) — deferred until Max picks a theme (Lab/Experiments and
+Services were the leading ideas).
 
-## Phase 4 (NEXT): wire the empty islands' content
-Reuse the proven interaction loop. **One generalization needed:** give each
-entry in `interactables.js` a **`type`** (`project | videoCategory | about |
-contact`) and have `InteractionOverlay` render the matching panel.
-1. **Videography island** (recommended first — meatiest): 4 screens, one per
-   category, from `src/data/videos.js` (`trailersPromos`, `socialShortForm`,
-   `narrativeDocumentary`, `aiVideos`). Walk-up → overlay with that category's
-   **YouTube videos**. Reuse `src/components/VideoGrid.jsx` / `VideoCard.jsx`.
-   Category thumbnails exist in `public/` (`trailersThumbnail.png`, etc.).
-2. **About island**: one interactable → overlay with bio + photo (content from
-   `src/pages/About.jsx`; photo `src/assets/maxProfile2.jpg`).
-3. **Contact island**: mailbox/terminal → overlay with email/contact (see
-   `src/pages/Contact.jsx`).
+## Phase 4 (DONE): islands wired via a type-driven interaction loop
+Each `interactables.js` entry has a **`type`** (`project | videoCategory |
+about`); `InteractionOverlay` renders the matching panel; `interactableTitle`
+/`interactableImage` are type-agnostic accessors used by the in-world kiosk.
+- **Videography**: 4 category screens (`src/data/videos.js`) → `VideoPanel`
+  reusing `VideoGrid`/`VideoCard`. Thumbnails in `public/` (`*Thumbnail.png`).
+- **About**: one stop → `AboutPanel` (bio + photo from `About.jsx` +
+  `maxProfile2.jpg`, then a get-in-touch section whose link → `/contact`).
+  **Contact was folded in here** (both pages were too thin to justify their
+  own islands) and the separate Contact island was removed.
+- **Archways**: each bridge's hub-side entrance has a labeled gray-box gateway
+  (named for its destination), replacing the old floating labels + billboards.
 
 ## Later phases
-- **Phase 5 — Art pass**: themed biomes (mushroom forest = Dev, crystal cavern = Video, sky temple = About), real lighting, volumetric clouds, styled kiosks/billboards. Free CC0 kits (Quaternius/Kenney). This is the big visual leap — billboard/kiosk styling waits for here.
+- **Phase 5 — Art pass**: themed biomes (mushroom forest = Dev, crystal cavern = Video, sky temple = About), real lighting, volumetric clouds, styled kiosks, and **labeled archways at each bridge's hub-side entrance** (the wayfinding that replaced the old billboards — removed once kiosks identified each island). Free CC0 kits (Quaternius/Kenney). This is the big visual leap — kiosk styling waits for here.
 - **Phase 6 — Engagement/polish** (user wants these LATER, not now): ambient **music + SFX**, **collectibles / light gamification**, a **welcome NPC on the hub representing Max**, loading screen, bloom post-processing, drifting clouds, idle character animations.
 - **Phase 7 — Ship**: mobile/perf tuning, code-split/compress the ~1.2 MB explore chunk, add an **"Enter the World"** entry point on the real homepage, merge to `main` / deploy (Netlify).
 

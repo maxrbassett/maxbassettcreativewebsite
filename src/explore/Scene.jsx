@@ -177,20 +177,19 @@ const BRIDGE_HALF_WIDTH = 3
 const BRIDGE_OVERLAP = 3 // how far each bridge end sinks into its island
 
 // Radii scale with how much each island holds: Dev (5 kiosks) is biggest;
-// About/Contact (one thing each) are small. Positions give each bridge a
-// reasonable length given the differing radii.
+// About (one merged stop) is small. Dev stays at the origin; Video and About
+// are pulled in close to the hub so their bridges stay short (~half the
+// length they'd have at the islands' full reach).
 const ISLANDS = [
-  { id: 'hub', position: [0, 0, 75], radius: 16, color: '#b3d99b', label: 'Hub', labelY: 11 },
-  { id: 'dev', position: [0, 0, 0], radius: 33, color: '#a7d8a0', label: 'Software Dev', labelY: 18 },
-  { id: 'video', position: [72, 0, 75], radius: 26, color: '#9ec9e8', label: 'Videography', labelY: 6, billboard: true },
-  { id: 'about', position: [-56, 0, 75], radius: 14, color: '#e6c98a', label: 'About', labelY: 6, billboard: true },
-  { id: 'contact', position: [0, 0, 125], radius: 12, color: '#d8a8d4', label: 'Contact', labelY: 6, billboard: true },
+  { id: 'hub', position: [0, 0, 75], radius: 16, color: '#b3d99b', label: 'Hub' },
+  { id: 'dev', position: [0, 0, 0], radius: 33, color: '#a7d8a0', label: 'Software Dev' },
+  { id: 'video', position: [54, 0, 75], radius: 26, color: '#9ec9e8', label: 'Videography' },
+  { id: 'about', position: [-40, 0, 75], radius: 14, color: '#e6c98a', label: 'About' },
 ]
 const BRIDGE_LINKS = [
   ['hub', 'dev'],
   ['hub', 'video'],
   ['hub', 'about'],
-  ['hub', 'contact'],
 ]
 const SPAWN = [0, 2.5, 75] // on the hub
 
@@ -213,6 +212,7 @@ function makeBridge(aId, bId) {
     const cz = a.position[2]
     return {
       axis: 'x', cx: (minX + maxX) / 2, cz, length: maxX - minX,
+      from: aId, to: bId, hubEnd: [start, 0, cz], // `start` is the a-side (hub) end
       zone: { type: 'rect', minX, maxX, minZ: cz - hw + 0.4, maxZ: cz + hw - 0.4 },
     }
   }
@@ -224,6 +224,7 @@ function makeBridge(aId, bId) {
   const cx = a.position[0]
   return {
     axis: 'z', cx, cz: (minZ + maxZ) / 2, length: maxZ - minZ,
+    from: aId, to: bId, hubEnd: [cx, 0, start], // `start` is the a-side (hub) end
     zone: { type: 'rect', minX: cx - hw + 0.4, maxX: cx + hw - 0.4, minZ, maxZ },
   }
 }
@@ -296,47 +297,47 @@ function Bridge({ axis, cx, cz, length }) {
   )
 }
 
-// Giant futuristic billboard marking a section island: a sleek pole with a
-// glowing emissive screen that faces back toward the hub. The island name
-// (IslandLabel) sits on the screen.
-function Billboard({ position, color, rotationY = 0 }) {
+// Placeholder gateway at a bridge's hub-side entrance: two posts straddling
+// the walkway + a lintel, with a DOM label naming the destination page. The
+// posts sit just outside the walkable zone (no collider needed — you walk
+// through the middle). zIndexRange keeps the label below the UI overlays.
+// Gray-box for now; styled archways come in the Phase 5 art pass.
+function Archway({ hubEnd, axis, label, showLabel }) {
+  const [x, , z] = hubEnd
+  const off = BRIDGE_HALF_WIDTH + 0.3 // post offset from walkway center
+  const postH = 5
+  const beamY = postH + 0.2
+  const thick = 0.5
+  // Posts straddle the axis perpendicular to the bridge; beam spans the gap.
+  const post1 = axis === 'x' ? [x, postH / 2, z + off] : [x + off, postH / 2, z]
+  const post2 = axis === 'x' ? [x, postH / 2, z - off] : [x - off, postH / 2, z]
+  const beamLen = off * 2 + thick
+  const beamArgs = axis === 'x' ? [thick, 0.6, beamLen] : [beamLen, 0.6, thick]
   return (
-    <group position={[position[0], 0, position[2]]} rotation={[0, rotationY, 0]}>
-      {/* support pole */}
-      <mesh position={[0, 2.4, 0]} castShadow>
-        <cylinderGeometry args={[0.18, 0.26, 4.8, 8]} />
-        <meshStandardMaterial color="#3a3f47" metalness={0.6} roughness={0.4} />
+    <group>
+      <mesh position={post1} castShadow>
+        <boxGeometry args={[thick, postH, thick]} />
+        <meshStandardMaterial color="#6f6a63" />
       </mesh>
-      {/* screen frame */}
-      <mesh position={[0, 6, 0]} castShadow>
-        <boxGeometry args={[6.6, 3.6, 0.5]} />
-        <meshStandardMaterial color="#23262b" metalness={0.7} roughness={0.3} />
+      <mesh position={post2} castShadow>
+        <boxGeometry args={[thick, postH, thick]} />
+        <meshStandardMaterial color="#6f6a63" />
       </mesh>
-      {/* glowing screen — emissive, shown on both faces */}
-      <mesh position={[0, 6, 0.27]}>
-        <planeGeometry args={[6, 3]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.9} toneMapped={false} />
+      <mesh position={[x, beamY, z]} castShadow>
+        <boxGeometry args={beamArgs} />
+        <meshStandardMaterial color="#5c5851" />
       </mesh>
-      <mesh position={[0, 6, -0.27]} rotation={[0, Math.PI, 0]}>
-        <planeGeometry args={[6, 3]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.9} toneMapped={false} />
-      </mesh>
+      {showLabel && (
+        <Html
+          position={[x, beamY + 0.9, z]}
+          center
+          zIndexRange={[100, 0]}
+          className="explore-island-label"
+        >
+          {label}
+        </Html>
+      )}
     </group>
-  )
-}
-
-// Floating signpost text (uses the site's display font via DOM). zIndexRange
-// keeps it below the UI overlays (prompt, joystick, panel).
-function IslandLabel({ position, y, text }) {
-  return (
-    <Html
-      position={[position[0], y, position[2]]}
-      center
-      zIndexRange={[100, 0]}
-      className="explore-island-label"
-    >
-      {text}
-    </Html>
   )
 }
 
@@ -524,18 +525,17 @@ export default function Scene() {
           {BRIDGES.map((b, idx) => (
             <Bridge key={idx} {...b} />
           ))}
-          {ISLANDS.filter((i) => i.billboard).map((i) => {
-            const hub = islandById('hub')
-            const rotationY = Math.atan2(
-              hub.position[0] - i.position[0],
-              hub.position[2] - i.position[2]
-            )
-            return <Billboard key={i.id} position={i.position} color={i.color} rotationY={rotationY} />
-          })}
-          {!panelOpen &&
-            ISLANDS.map((i) => (
-              <IslandLabel key={i.id} position={i.position} y={i.labelY} text={i.label} />
-            ))}
+          {/* Labeled gateway at each bridge's hub-side entrance (named for
+              the page it leads to). Replaces the old floating island labels. */}
+          {BRIDGES.map((b) => (
+            <Archway
+              key={`arch-${b.to}`}
+              hubEnd={b.hubEnd}
+              axis={b.axis}
+              label={islandById(b.to).label}
+              showLabel={!panelOpen}
+            />
+          ))}
           <BoundaryGuard bodyRef={characterRef} />
 
           {/* Interactive kiosks + proximity detection */}

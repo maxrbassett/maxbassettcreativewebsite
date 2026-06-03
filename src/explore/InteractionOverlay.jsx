@@ -1,7 +1,32 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useExplore } from './useExplore'
 import { INTERACTABLES } from './interactables'
 import VideoGrid from '../components/VideoGrid'
+
+function AboutPanel({ about, onClose }) {
+  return (
+    <div className="explore-panel-backdrop" onClick={onClose}>
+      <div className="explore-panel" onClick={(e) => e.stopPropagation()}>
+        <button className="explore-panel__close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+        <div className="explore-panel__img">
+          <img src={about.photo} alt={about.name} />
+        </div>
+        <div className="explore-panel__body">
+          <h2 className="explore-panel__title">{about.name}</h2>
+          {about.paragraphs.map((p, i) => (
+            <p key={i} className="explore-panel__desc">{p}</p>
+          ))}
+          <h3 className="explore-panel__subhead">Get in Touch</h3>
+          <p className="explore-panel__desc">{about.contactText}</p>
+          <Link className="explore-panel__link" to="/contact">Open the contact form →</Link>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function VideoPanel({ category, onClose }) {
   return (
@@ -102,6 +127,8 @@ export default function InteractionOverlay({ isTouch }) {
       {active &&
         (active.type === 'videoCategory' ? (
           <VideoPanel category={active.category} onClose={close} />
+        ) : active.type === 'about' ? (
+          <AboutPanel about={active.about} onClose={close} />
         ) : (
           <ProjectPanel project={active.project} onClose={close} />
         ))}
