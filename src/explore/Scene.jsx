@@ -227,16 +227,44 @@ function Bridge({ axis, cx, cz, length }) {
   )
 }
 
+// Archway post geometry — shared with the keep-out obstacles below so the
+// posts you see are exactly the posts you collide with.
+const ARCH_POST_THICK = 1.2
+const ARCH_POST_OFF = BRIDGE_HALF_WIDTH + ARCH_POST_THICK / 2
+
+// Keep-out circles around each archway post (2 per bridge). The posts sit
+// inside the hub's walkable circle, so the zone containment check alone won't
+// stop you — BoundaryGuard pushes you back out of these. Code-based (not
+// colliders) to avoid tunneling through the thin posts at sprint speed.
+const POST_OBSTACLES = BRIDGES.flatMap((b) => {
+  const [x, , z] = b.hubEnd
+  const centers = b.axis === 'x'
+    ? [[x, z + ARCH_POST_OFF], [x, z - ARCH_POST_OFF]]
+    : [[x + ARCH_POST_OFF, z], [x - ARCH_POST_OFF, z]]
+  return centers.map(([cx, cz]) => ({ cx, cz, r: ARCH_POST_THICK / 2 + 0.55 }))
+})
+
+// Covered-bridge tunnel walls as keep-out barriers. Each is a line at `w` on
+// its `normal` axis, spanning [min,max] along the bridge. Like the posts, this
+// is code-based: where a wall runs through an island's wide walkable circle
+// (the overlap), the zone check won't stop you crossing it, so this does.
+const WALL_KEEPOUT = 0.6 // half wall thickness + player margin
+const WALL_OBSTACLES = BRIDGES.flatMap((b) => {
+  const half = b.length / 2
+  return b.axis === 'x'
+    ? [b.cz + BRIDGE_HALF_WIDTH, b.cz - BRIDGE_HALF_WIDTH].map((w) => ({ normal: 'z', w, min: b.cx - half, max: b.cx + half }))
+    : [b.cx + BRIDGE_HALF_WIDTH, b.cx - BRIDGE_HALF_WIDTH].map((w) => ({ normal: 'x', w, min: b.cz - half, max: b.cz + half }))
+})
+
 // Stone gateway at a bridge's hub-side entrance: two chunky posts flanking the
 // tunnel mouth + a thick lintel, with the destination name engraved into the
-// stone (real 3D Text on both faces, so it reads coming and going) instead of
-// a floating DOM label. Posts sit just outside the walkable zone (no collider
-// needed — you walk through the middle).
+// stone (real 3D Text on both faces, so it reads coming and going). The posts
+// are solid (see POST_OBSTACLES) — you walk through the middle, not through them.
 function Archway({ hubEnd, axis, label, color = '#332f29' }) {
   const [x, , z] = hubEnd
-  const postThick = 1.2
+  const postThick = ARCH_POST_THICK
   const postH = 5 // matches the tunnel height
-  const off = BRIDGE_HALF_WIDTH + postThick / 2 // inner faces flank the tunnel mouth
+  const off = ARCH_POST_OFF // inner faces flank the tunnel mouth
   const lintelH = 2.0
   const lintelDepth = 1.5
   const lintelY = postH + lintelH / 2
@@ -322,6 +350,47 @@ function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
       body.setTranslation({ x: spawn[0], y: spawn[1], z: spawn[2] }, true)
       body.setLinvel({ x: 0, y: 0, z: 0 }, true)
       return
+    }
+
+    // Keep-out: if you've walked into an archway post, push back to its edge
+    // and kill the inward velocity (so you slide along it, like the boundary).
+    for (const o of POST_OBSTACLES) {
+      const dx = pos.x - o.cx
+      const dz = pos.z - o.cz
+      const d = Math.hypot(dx, dz)
+      if (d < o.r) {
+        const nd = d || 1e-6
+        const nx = dx / nd
+        const nz = dz / nd
+        body.setTranslation({ x: o.cx + nx * o.r, y: pos.y, z: o.cz + nz * o.r }, true)
+        const v = body.linvel()
+        const inward = -(v.x * nx + v.z * nz) // velocity component toward the post
+        if (inward > 0) {
+          body.setLinvel({ x: v.x + inward * nx, y: v.y, z: v.z + inward * nz }, true)
+        }
+        return
+      }
+    }
+
+    // Keep-out: tunnel walls. Block crossing within the wall's run, pushing
+    // back to the side you're on and zeroing the crossing velocity (so you
+    // slide along it instead of passing through).
+    for (const wl of WALL_OBSTACLES) {
+      if (wl.normal === 'z') {
+        if (pos.x > wl.min && pos.x < wl.max && Math.abs(pos.z - wl.w) < WALL_KEEPOUT) {
+          const side = pos.z >= wl.w ? 1 : -1
+          body.setTranslation({ x: pos.x, y: pos.y, z: wl.w + side * WALL_KEEPOUT }, true)
+          const v = body.linvel()
+          if (side * v.z < 0) body.setLinvel({ x: v.x, y: v.y, z: 0 }, true)
+          return
+        }
+      } else if (pos.z > wl.min && pos.z < wl.max && Math.abs(pos.x - wl.w) < WALL_KEEPOUT) {
+        const side = pos.x >= wl.w ? 1 : -1
+        body.setTranslation({ x: wl.w + side * WALL_KEEPOUT, y: pos.y, z: pos.z }, true)
+        const v = body.linvel()
+        if (side * v.x < 0) body.setLinvel({ x: 0, y: v.y, z: v.z }, true)
+        return
+      }
     }
 
     // Safe if inside any walkable zone
@@ -500,7 +569,7 @@ export default function Scene() {
             camInitDir={{ x: 0.2, y: Math.PI }}
           >
             <CharacterAnimation characterURL={characterURL} animationSet={animationSet}>
-              <CharacterModel position={[0, -0.94, 0]} scale={0.95} />
+              <CharacterModel position={[0, -0.88, 0]} scale={0.95} />
             </CharacterAnimation>
           </Ecctrl>
 
