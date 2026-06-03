@@ -457,13 +457,13 @@ export default function Scene() {
       <Clouds material={THREE.MeshBasicMaterial} limit={300} range={160}>
         <Cloud
           seed={1}
-          bounds={[260, 12, 260]}
+          bounds={[260, 4, 260]}
           segments={48}
-          volume={70}
+          volume={50}
           opacity={0.5}
           speed={0}
           color="#f4f9ff"
-          position={[0, -15, 30]}
+          position={[0, -20, 30]}
         />
       </Clouds>
 
@@ -476,9 +476,11 @@ export default function Scene() {
             disableControl={panelOpen}
             floatHeight={0.3}
             position={SPAWN}
-            // Always run at the former sprint speed (4 × default sprint 2).
+            // Always jog at speed 8; hold Shift (the `run` action) to sprint at
+            // double (8 × 2 = 16). CharacterAnimation retimes the run clip to
+            // ground speed, so the legs keep pace at both speeds.
             maxVelLimit={8}
-            sprintMult={1}
+            sprintMult={2}
             // Hybrid camera: FixedCamera keeps it locked behind the character
             // (turning stays behind, movement reads "into the screen").
             // CameraDragControls lets you drag to look; while dragging we set
@@ -492,6 +494,9 @@ export default function Scene() {
             camMinDis={-2}
             // Face south on spawn (toward the buildings) — flipped 180° from
             // the old north-facing default so you look into the world on load.
+            // characterInitDir sets the character's resting facing (modelEuler);
+            // camInitDir starts the camera behind it so there's no swing.
+            characterInitDir={Math.PI}
             camInitDir={{ x: 0.2, y: Math.PI }}
           >
             <CharacterAnimation characterURL={characterURL} animationSet={animationSet}>

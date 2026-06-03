@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import { Link } from 'react-router-dom'
@@ -38,6 +38,16 @@ export default function ExplorePage() {
   const [started, setStarted] = useState(false)
   const panelOpen = useExplore((s) => s.active != null)
 
+  // Let the intro card be dismissed with Enter (in addition to the button).
+  useEffect(() => {
+    if (started) return
+    const onKey = (e) => {
+      if (e.key === 'Enter') setStarted(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [started])
+
   // No WebGL → never show a blank canvas; send them back to the real site.
   if (!supported) {
     return (
@@ -76,7 +86,7 @@ export default function ExplorePage() {
       <div className="explore-hint">
         {isTouch
           ? 'Joystick to move · drag screen to look · button to jump'
-          : 'WASD / arrows to move · drag to look · Space to jump'}
+          : 'WASD / arrows to move · Shift to sprint · drag to look · Space to jump'}
       </div>
 
       <Link to="/" className="explore-exit" aria-label="Exit the 3D world">
@@ -103,6 +113,7 @@ export default function ExplorePage() {
               ) : (
                 <>
                   <li><strong>Move</strong> — W A S D or arrow keys</li>
+                  <li><strong>Sprint</strong> — hold Shift</li>
                   <li><strong>Look</strong> — click and drag</li>
                   <li><strong>Jump</strong> — Space</li>
                 </>
