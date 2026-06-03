@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { KeyboardControls, useGLTF, useAnimations, Sky, Html } from '@react-three/drei'
+import { KeyboardControls, useGLTF, useAnimations, Sky, Html, Clouds, Cloud } from '@react-three/drei'
 import { Physics, RigidBody, CylinderCollider, CuboidCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
@@ -453,20 +453,41 @@ function CameraDragControls({ characterRef, onLookingChange }) {
   return null
 }
 
+// Shared sun direction: the Sky's sun and the key light point the same way so
+// the lighting reads coherently. Lowered/warmed from the old midday angle for
+// a late-afternoon feel.
+const SUN_POS = [45, 26, 22]
+
 export default function Scene() {
   const characterRef = useRef(null)
   const panelOpen = useExplore((s) => s.active != null)
   const [looking, setLooking] = useState(false)
   return (
     <>
-      <Sky sunPosition={[40, 25, 30]} turbidity={6} rayleigh={1.2} />
-      <ambientLight intensity={0.7} />
-      {/* Named "followLight" so ecctrl's followLight prop keeps shadows
-          centered on the character as it moves around. */}
+      {/* Soft distance haze so far islands fade into the sky. Fog is
+          camera-relative, so islands you're near stay crisp while ones across
+          the world dissolve toward the horizon. Color blends with the Sky. */}
+      <fog attach="fog" args={['#cfe0f2', 95, 320]} />
+
+      <Sky
+        sunPosition={SUN_POS}
+        turbidity={8}
+        rayleigh={1.6}
+        mieCoefficient={0.006}
+        mieDirectionalG={0.85}
+      />
+
+      {/* Outdoor light: a hemisphere fill (cool sky above, warm ground bounce)
+          plus a warm low-angle key light aligned with the Sky's sun. The key
+          light is named "followLight" so ecctrl keeps its shadow centered on
+          the character as it moves. */}
+      <hemisphereLight args={['#bcd8f5', '#e7d2a4', 0.6]} />
+      <ambientLight intensity={0.25} />
       <directionalLight
         name="followLight"
-        position={[20, 30, 10]}
-        intensity={1.5}
+        position={SUN_POS}
+        intensity={1.4}
+        color="#ffe7c2"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-30}
@@ -475,13 +496,26 @@ export default function Scene() {
         shadow-camera-bottom={-30}
       />
 
-      {/* Sea of clouds far below, so the island reads as floating in the
-          sky. A simple large disc for now; volumetric clouds come in the
-          art pass (Phase 5). */}
+      {/* Sea of clouds far below, so the islands read as floating. A soft disc
+          is the dependable floor (recolored to melt into the fog so its edge
+          never reads as a hard line); a thin layer of volumetric puffs above
+          it adds real depth at the horizon. Static for now — drift is Phase 6. */}
       <mesh position={[0, -22, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1000, 64]} />
-        <meshBasicMaterial color="#eef6ff" />
+        <meshBasicMaterial color="#dcebf9" />
       </mesh>
+      <Clouds material={THREE.MeshBasicMaterial} limit={300} range={160}>
+        <Cloud
+          seed={1}
+          bounds={[260, 12, 260]}
+          segments={48}
+          volume={70}
+          opacity={0.5}
+          speed={0}
+          color="#f4f9ff"
+          position={[0, -15, 30]}
+        />
+      </Clouds>
 
       <Physics timeStep="vary">
         <KeyboardControls map={keyboardMap}>
