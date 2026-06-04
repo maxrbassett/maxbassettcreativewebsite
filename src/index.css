@@ -11,9 +11,9 @@
 
 :root {
   /* === ACCENT (shared by both themes) === */
-  --color-accent: #F05A1A;
-  --color-accent-hover: #D44D12;
-  --color-accent-dim: rgba(240, 90, 26, 0.15);
+  --color-accent: #A46B44;
+  --color-accent-hover: #8A5836;
+  --color-accent-dim: rgba(164, 107, 68, 0.15);
 
   /* === TYPOGRAPHY === */
   --font-display: 'Bebas Neue', sans-serif;

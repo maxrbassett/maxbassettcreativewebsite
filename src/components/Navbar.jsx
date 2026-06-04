@@ -116,6 +116,11 @@ export default function Navbar() {
             ))}
           </nav>
 
+          {/* 3D world entry point (always visible) */}
+          <Link to="/explore" className="navbar__explore" onClick={handleNavClick}>
+            3D Experience
+          </Link>
+
           {/* Theme toggle (always visible) */}
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
@@ -145,6 +150,9 @@ export default function Navbar() {
             {link.label}
           </NavLink>
         ))}
+        <Link to="/explore" className="navbar__mobile-explore" onClick={handleNavClick}>
+          3D Experience
+        </Link>
       </div>
     </header>
   )
