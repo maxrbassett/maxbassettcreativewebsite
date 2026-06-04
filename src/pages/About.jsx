@@ -30,9 +30,8 @@ export default function About() {
             Developer at Chicago Venture Partners and assist in the software development for 
             their portfolio companies, including Typenex Medical, a medical device company supplying 
             hospitals, clinics, and surgery centers with the tools they need to provide better care. 
-            I also work as a freelance web developer for small businesses and growing teams.
           </p>
-          {/* <p className="about__text">
+          <p className="about__text">
             On the side, I'm a filmmaker and video editor, creating
             trailers, social content, documentary pieces, and AI-driven
             cinema. Reach out if you're interested in seeing some of my work! 
@@ -40,7 +39,7 @@ export default function About() {
              <a href="/videography" style={{ color: 'var(--color-accent)' }}>
                videography section
              </a>. 
-          </p> --- IGNORE --- */}
+          </p> 
            <p className="about__text">
             I'm always interested in connecting with new people and learning about interesting projects. 
             If you'd like to chat, feel free to reach out!
