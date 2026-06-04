@@ -97,40 +97,50 @@ export default function InteractionOverlay({ isTouch }) {
   const close = useExplore((s) => s.close)
 
   const interact = () => {
-    const cur = useExplore.getState().nearby
+    const st = useExplore.getState()
+    const cur = st.nearby
     if (!cur) return
     const it = INTERACTABLES.find((i) => i.id === cur.id)
-    if (it) open(it)
+    if (it) st.open(it)
   }
 
-  // Desktop: E to open the nearby kiosk, Esc to close an open panel.
+  // Desktop keys: E opens the nearby thing OR advances NPC dialogue (the NPC's
+  // speech bubble lives in <Npc>); Esc closes.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape' && useExplore.getState().active) {
-        close()
-      } else if ((e.key === 'e' || e.key === 'E') && !useExplore.getState().active) {
-        interact()
+      const st = useExplore.getState()
+      const a = st.active
+      if (e.key === 'Escape' && a) {
+        st.close()
+      } else if (e.key === 'e' || e.key === 'E') {
+        if (a?.type === 'npc') st.advanceDialogue()
+        else if (!a) interact()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Prompt verb: NPC = "talk to", screens = "view".
+  const nearbyType = nearby ? INTERACTABLES.find((i) => i.id === nearby.id)?.type : null
+
   return (
     <>
       {nearby && !active && (
         isTouch ? (
           <button className="explore-interact" onClick={interact}>
-            View<br />
+            {nearbyType === 'npc' ? 'Talk' : 'View'}<br />
             <span>{nearby.title}</span>
           </button>
         ) : (
           <div className="explore-prompt">
-            Press <kbd>E</kbd> to view <strong>{nearby.title}</strong>
+            Press <kbd>E</kbd> to {nearbyType === 'npc' ? 'talk to' : 'view'}{' '}
+            <strong>{nearby.title}</strong>
           </div>
         )
       )}
-      {active &&
+      {/* NPC dialogue renders as a 3D-anchored speech bubble in <Npc>. */}
+      {active && active.type !== 'npc' &&
         (active.type === 'video' ? (
           <VideoPlayerPanel video={active.video} onClose={close} />
         ) : active.type === 'about' ? (

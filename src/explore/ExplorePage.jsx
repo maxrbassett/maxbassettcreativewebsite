@@ -6,6 +6,7 @@ import Scene from './Scene'
 import TouchControls from './TouchControls'
 import InteractionOverlay from './InteractionOverlay'
 import { useExplore } from './useExplore'
+import { NPC } from './interactables'
 import './explore.css'
 
 /* ------------------------------------------------------------------
@@ -36,7 +37,10 @@ function hasWebGL() {
 export default function ExplorePage() {
   const [supported] = useState(hasWebGL)
   const [started, setStarted] = useState(false)
-  const panelOpen = useExplore((s) => s.active != null)
+  // Only full-screen panels hide the joystick — the NPC speech bubble doesn't,
+  // so Max talking never interrupts moving around (esp. the auto-greet on load).
+  const activeType = useExplore((s) => s.active?.type)
+  const panelOpen = activeType != null && activeType !== 'npc'
 
   // Let the intro card be dismissed with Enter (in addition to the button).
   useEffect(() => {
@@ -46,6 +50,11 @@ export default function ExplorePage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [started])
+
+  // Auto-greet: open Max's welcome dialogue once, as soon as you enter the world.
+  useEffect(() => {
+    if (started) useExplore.getState().open(NPC)
   }, [started])
 
   // No WebGL → never show a blank canvas; send them back to the real site.

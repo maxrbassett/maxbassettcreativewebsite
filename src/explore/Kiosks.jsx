@@ -59,7 +59,10 @@ function Kiosk({ data }) {
 }
 
 export function Kiosks() {
-  return INTERACTABLES.map((data) => <Kiosk key={data.id} data={data} />)
+  // The NPC is a character, rendered by <Npc> — not a wall screen.
+  return INTERACTABLES.filter((d) => d.type !== 'npc').map((data) => (
+    <Kiosk key={data.id} data={data} />
+  ))
 }
 
 /* Per-frame distance check from the character to each interactable. Sets

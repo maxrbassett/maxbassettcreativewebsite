@@ -5,7 +5,7 @@ import {
   aiVideos,
 } from '../data/videos'
 import maxProfile from '../assets/maxProfile2.jpg'
-import { wallSlots } from './worldLayout'
+import { wallSlots, NPC_POSITION, NPC_ROTATION_Y } from './worldLayout'
 
 /* Interactive wall-mounted screens inside the museum islands. Each entry has a
  * `type` that tells InteractionOverlay which content panel to render on
@@ -14,6 +14,7 @@ import { wallSlots } from './worldLayout'
  *   - 'video'   → a single YouTube video (linked `video`); walk-up plays it in
  *                 an iframe popup
  *   - 'about'   → bio + photo + get-in-touch panel (`about`)
+ *   - 'npc'     → the welcome NPC ("Max"); a stepped dialogue box (`npc.lines`)
  *
  * Positions/rotations are NOT hand-placed — `wallSlots` distributes each
  * island's screens around its interior wall (facing the room center), so they
@@ -70,7 +71,27 @@ const aboutKiosk = {
   },
 }
 
-export const INTERACTABLES = [...devKiosks, ...videoKiosks, aboutKiosk]
+// --- Welcome NPC ("Max") next to spawn. Auto-greets on load; talk again with
+// E. Rendered as a character (not a kiosk) by <Npc>; this entry just drives
+// proximity + the dialogue. ---
+export const NPC = {
+  id: 'npc-max',
+  type: 'npc',
+  radius: 7,
+  position: NPC_POSITION,
+  rotationY: NPC_ROTATION_Y,
+  npc: {
+    name: 'Max',
+    lines: [
+      'Welcome to my portfolio website! Glad you found your way here.',
+      "I'm Max — each building here is a different part of what I do.",
+      'Head through the archways to explore Software Dev, Videography, and a bit About me.',
+      'Inside, walk up to a screen and press E to take a closer look. Enjoy exploring!',
+    ],
+  },
+}
+
+export const INTERACTABLES = [...devKiosks, ...videoKiosks, aboutKiosk, NPC]
 
 /* Type-agnostic accessors so the in-world screen (texture + proximity label)
  * doesn't need to branch on type. */
@@ -78,6 +99,7 @@ export const interactableTitle = (it) => {
   switch (it.type) {
     case 'video': return it.video.title
     case 'about': return 'About Max'
+    case 'npc': return it.npc.name
     default: return it.project.title
   }
 }
@@ -86,6 +108,7 @@ export const interactableImage = (it) => {
   switch (it.type) {
     case 'video': return `https://img.youtube.com/vi/${it.video.youtubeId}/hqdefault.jpg`
     case 'about': return it.about.photo
+    case 'npc': return null
     default: return it.project.image
   }
 }

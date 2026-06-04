@@ -9,6 +9,7 @@ import { useExplore } from './useExplore'
 import { Kiosks, ProximityDetector } from './Kiosks'
 import { WorldDecor } from './Decor'
 import { Museums } from './Architecture'
+import { Npc } from './Npc'
 import {
   ISLAND_TOP_Y,
   ISLAND_THICKNESS,
@@ -19,6 +20,7 @@ import {
   BRIDGES,
   ZONES,
   BUILDING_THEME,
+  NPC_POSITION,
 } from './worldLayout'
 
 /* ------------------------------------------------------------------
@@ -236,13 +238,17 @@ const ARCH_POST_OFF = BRIDGE_HALF_WIDTH + ARCH_POST_THICK / 2
 // inside the hub's walkable circle, so the zone containment check alone won't
 // stop you — BoundaryGuard pushes you back out of these. Code-based (not
 // colliders) to avoid tunneling through the thin posts at sprint speed.
-const POST_OBSTACLES = BRIDGES.flatMap((b) => {
-  const [x, , z] = b.hubEnd
-  const centers = b.axis === 'x'
-    ? [[x, z + ARCH_POST_OFF], [x, z - ARCH_POST_OFF]]
-    : [[x + ARCH_POST_OFF, z], [x - ARCH_POST_OFF, z]]
-  return centers.map(([cx, cz]) => ({ cx, cz, r: ARCH_POST_THICK / 2 + 0.55 }))
-})
+const POST_OBSTACLES = [
+  ...BRIDGES.flatMap((b) => {
+    const [x, , z] = b.hubEnd
+    const centers = b.axis === 'x'
+      ? [[x, z + ARCH_POST_OFF], [x, z - ARCH_POST_OFF]]
+      : [[x + ARCH_POST_OFF, z], [x - ARCH_POST_OFF, z]]
+    return centers.map(([cx, cz]) => ({ cx, cz, r: ARCH_POST_THICK / 2 + 0.55 }))
+  }),
+  // Max (the welcome NPC) — solid, so you can't walk through him.
+  { cx: NPC_POSITION[0], cz: NPC_POSITION[2], r: 1.1 },
+]
 
 // Covered-bridge tunnel walls as keep-out barriers. Each is a line at `w` on
 // its `normal` axis, spanning [min,max] along the bridge. Like the posts, this
@@ -479,7 +485,12 @@ const SUN_POS = [45, 26, 22]
 
 export default function Scene() {
   const characterRef = useRef(null)
-  const panelOpen = useExplore((s) => s.active != null)
+  // Lock controls only for full-screen panels — NOT the NPC dialogue. ecctrl's
+  // disableControl `return`s before the hover/auto-balance physics, so locking
+  // would drop the float force and the character sinks; the panels hide that
+  // behind their overlay, but the NPC speech bubble doesn't.
+  const activeType = useExplore((s) => s.active?.type)
+  const panelOpen = activeType != null && activeType !== 'npc'
   const [looking, setLooking] = useState(false)
   return (
     <>
@@ -589,6 +600,9 @@ export default function Scene() {
 
           {/* Distant background islets for depth. */}
           <WorldDecor />
+
+          {/* Welcome NPC ("Max") by spawn. */}
+          <Npc />
           {BRIDGES.map((b, idx) => (
             <Bridge key={idx} {...b} />
           ))}

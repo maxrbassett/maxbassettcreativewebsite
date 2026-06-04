@@ -13,14 +13,32 @@ const MAT = {
   isletRock: new THREE.MeshStandardMaterial({ color: '#7d6b58', roughness: 1 }),
 }
 
-const ISLETS = [
-  { position: [128, -3, 18], radius: 9 },
-  { position: [-118, 7, 150], radius: 7 },
-  { position: [44, 11, -96], radius: 11 },
-  { position: [150, -5, 128], radius: 8 },
-  { position: [-86, -8, -52], radius: 6 },
-  { position: [-150, 2, 40], radius: 10 },
-]
+// Seeded so the scatter is stable across reloads/HMR. A ring of islets around
+// the world center, varied distance/height/size, kept within the fog range so
+// they fade to silhouettes rather than popping at a hard edge.
+function mulberry32(a) {
+  return function () {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const ISLETS = (() => {
+  const rng = mulberry32(20260603)
+  const cx = 0
+  const cz = 55 // rough center of the playable area
+  return Array.from({ length: 22 }, () => {
+    const ang = rng() * Math.PI * 2
+    const dist = 120 + rng() * 175 // 120–295: past the islands, inside the fog
+    return {
+      position: [cx + Math.cos(ang) * dist, -14 + rng() * 30, cz + Math.sin(ang) * dist],
+      radius: 4 + rng() * 7,
+    }
+  })
+})()
 
 function Islet({ position, radius }) {
   return (

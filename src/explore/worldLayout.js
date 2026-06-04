@@ -32,6 +32,11 @@ export const BRIDGE_LINKS = [
 export const SPAWN = [0, 2.5, 89.5]
 export const SECTION_IDS = ['dev', 'video', 'about'] // the enclosed museum islands
 
+// Welcome NPC ("Max") standing just in front of spawn, turned to face the
+// player. (atan2(dx,dz) faces the model's +z toward the spawn point.)
+export const NPC_POSITION = [3.5, 0, 84]
+export const NPC_ROTATION_Y = Math.atan2(SPAWN[0] - NPC_POSITION[0], SPAWN[2] - NPC_POSITION[2])
+
 export const islandById = (id) => ISLANDS.find((i) => i.id === id)
 
 // World-space angle (atan2(dz,dx)) from an island's center toward the hub —
