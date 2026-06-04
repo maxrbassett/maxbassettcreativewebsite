@@ -188,15 +188,16 @@
   /* transform is driven by JS; default is centered (0,0) */
 }
 
+/* Jump: clear (outlined) button, to the left of the colored Sprint. */
 .touch-jump {
   position: fixed;
   bottom: 44px;
-  right: 36px;
+  right: 132px; /* left of Sprint: 36 (sprint right) + 78 (sprint width) + 18 gap */
   width: 78px;
   height: 78px;
   border-radius: 50%;
-  border: none;
-  background: rgba(240, 90, 26, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.28);
   color: #fff;
   font-family: var(--font-body);
   font-size: 0.8rem;
@@ -206,6 +207,29 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 .touch-jump:active {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Sprint: held to double the run speed. Colored button in the bottom-right
+   corner; darkens while held. Matches the Jump button's size and font. */
+.touch-sprint {
+  position: fixed;
+  bottom: 44px;
+  right: 36px;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  z-index: 1200;
+  touch-action: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.touch-sprint--on {
   background: var(--color-accent-hover);
 }
 

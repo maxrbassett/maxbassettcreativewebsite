@@ -91,12 +91,13 @@ export default function ExplorePage() {
       {/* drei's asset-loading overlay (tracks the GLB download). */}
       <Loader />
 
-      {/* Persistent movement hint. */}
-      <div className="explore-hint">
-        {isTouch
-          ? 'Joystick to move · drag screen to look · button to jump'
-          : 'WASD / arrows to move · Shift to sprint · drag to look · Space to jump'}
-      </div>
+      {/* Persistent movement hint — desktop only; on mobile the on-screen
+          buttons are self-explanatory and the pill just crowds the controls. */}
+      {!isTouch && (
+        <div className="explore-hint">
+          WASD / arrows to move · Shift to sprint · drag to look · Space to jump
+        </div>
+      )}
 
       <Link to="/" className="explore-exit" aria-label="Exit the 3D world">
         ✕ Exit
@@ -107,7 +108,6 @@ export default function ExplorePage() {
         <div className="explore-intro">
           <div className="explore-card">
             <p className="explore-card__eyebrow">An experiment</p>
-            <h1 className="explore-card__title">Explore the World</h1>
             <p className="explore-card__text">
               Wander a floating world to discover my work. Walk up to a glowing
               kiosk to view a project.

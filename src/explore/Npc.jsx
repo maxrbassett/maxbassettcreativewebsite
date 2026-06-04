@@ -138,7 +138,7 @@ export function Npc() {
         <Float speed={3} floatIntensity={0.9} rotationIntensity={0.7}>
           <mesh position={[0, 3.2, 0]} castShadow>
             <octahedronGeometry args={[0.32, 0]} />
-            <meshStandardMaterial color="#F05A1A" emissive="#F05A1A" emissiveIntensity={0.7} />
+            <meshStandardMaterial color="#A46B44" emissive="#A46B44" emissiveIntensity={0.7} />
           </mesh>
         </Float>
       )}

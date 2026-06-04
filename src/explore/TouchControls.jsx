@@ -20,12 +20,12 @@ import { useJoystickControls } from 'ecctrl'
  * ------------------------------------------------------------------ */
 
 const MAX_DIST = 48 // px the knob can travel from center
-const RUN_THRESHOLD = 0.9 // fraction of MAX_DIST that counts as "running"
 
 export default function TouchControls() {
   const baseRef = useRef(null)
   const knobRef = useRef(null)
   const jumpRef = useRef(null)
+  const sprintRef = useRef(null)
 
   const setJoystick = useJoystickControls((s) => s.setJoystick)
   const resetJoystick = useJoystickControls((s) => s.resetJoystick)
@@ -36,10 +36,17 @@ export default function TouchControls() {
     const base = baseRef.current
     const knob = knobRef.current
     const jump = jumpRef.current
+    const sprintBtn = sprintRef.current
     if (!base || !jump) return
 
     let activeId = null
     let center = { x: 0, y: 0 }
+    // Sprint is held via its own button; the joystick passes this as ecctrl's
+    // "run" flag. We remember the last stick reading so toggling sprint can
+    // re-emit immediately (without waiting for the next finger move).
+    let sprinting = false
+    let lastDist = 0
+    let lastAng = 0
 
     const applyKnob = (kx, ky) => {
       if (knob) knob.style.transform = `translate(${kx}px, ${ky}px)`
@@ -51,8 +58,12 @@ export default function TouchControls() {
       const dist = Math.min(Math.hypot(dx, dy), MAX_DIST)
       let ang = Math.atan2(dy, dx)
       if (ang < 0) ang += Math.PI * 2
-      const runState = dist > MAX_DIST * RUN_THRESHOLD
-      setJoystick(dist, ang, runState)
+      lastDist = dist
+      lastAng = ang
+      // The third arg is ecctrl's "run"/sprint flag — true only while the
+      // Sprint button is held (no longer auto-triggered by stick distance,
+      // which looked choppy). Desktop Shift-to-sprint is unaffected.
+      setJoystick(dist, ang, sprinting)
       // Visual knob: screen Y is inverted relative to our math Y.
       applyKnob(Math.cos(ang) * dist, -Math.sin(ang) * dist)
     }
@@ -96,6 +107,20 @@ export default function TouchControls() {
     }
     const onJumpEnd = () => releaseAllButtons()
 
+    // ---- Sprint button (hold to double the run speed) ----
+    // Re-emit the current stick reading with the new run flag so the change
+    // takes effect instantly, even if the finger isn't moving the joystick.
+    const setSprint = (on) => {
+      sprinting = on
+      if (sprintBtn) sprintBtn.classList.toggle('touch-sprint--on', on)
+      if (activeId !== null) setJoystick(lastDist, lastAng, on)
+    }
+    const onSprintStart = (e) => {
+      setSprint(true)
+      e.preventDefault()
+    }
+    const onSprintEnd = () => setSprint(false)
+
     base.addEventListener('touchstart', onBaseStart, { passive: false })
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onEnd, { passive: false })
@@ -103,6 +128,11 @@ export default function TouchControls() {
     jump.addEventListener('touchstart', onJumpStart, { passive: false })
     jump.addEventListener('touchend', onJumpEnd)
     jump.addEventListener('touchcancel', onJumpEnd)
+    if (sprintBtn) {
+      sprintBtn.addEventListener('touchstart', onSprintStart, { passive: false })
+      sprintBtn.addEventListener('touchend', onSprintEnd)
+      sprintBtn.addEventListener('touchcancel', onSprintEnd)
+    }
 
     return () => {
       base.removeEventListener('touchstart', onBaseStart)
@@ -112,6 +142,11 @@ export default function TouchControls() {
       jump.removeEventListener('touchstart', onJumpStart)
       jump.removeEventListener('touchend', onJumpEnd)
       jump.removeEventListener('touchcancel', onJumpEnd)
+      if (sprintBtn) {
+        sprintBtn.removeEventListener('touchstart', onSprintStart)
+        sprintBtn.removeEventListener('touchend', onSprintEnd)
+        sprintBtn.removeEventListener('touchcancel', onSprintEnd)
+      }
     }
   }, [setJoystick, resetJoystick, pressButton1, releaseAllButtons])
 
@@ -120,6 +155,9 @@ export default function TouchControls() {
       <div ref={baseRef} className="touch-joystick" aria-hidden="true">
         <div ref={knobRef} className="touch-joystick__knob" />
       </div>
+      <button ref={sprintRef} className="touch-sprint" aria-label="Sprint (hold)" type="button">
+        SPRINT
+      </button>
       <button ref={jumpRef} className="touch-jump" aria-label="Jump" type="button">
         JUMP
       </button>

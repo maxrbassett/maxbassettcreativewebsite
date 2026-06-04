@@ -492,6 +492,23 @@ export default function Scene() {
   const activeType = useExplore((s) => s.active?.type)
   const panelOpen = activeType != null && activeType !== 'npc'
   const [looking, setLooking] = useState(false)
+
+  // While a panel is open we set disableControl, but ecctrl's disabled branch
+  // `return`s before applying its float/hover spring — so plain gravity pulls
+  // the capsule down and it snaps back up when the panel closes. Hold it in
+  // place instead: zero its velocity and gravity while frozen, restore on close.
+  useEffect(() => {
+    const body = characterRef.current?.group
+    if (!body) return
+    if (panelOpen) {
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+      body.setGravityScale(0, true)
+    } else {
+      body.setGravityScale(1, true)
+    }
+  }, [panelOpen])
+
   return (
     <>
       {/* Soft distance haze so far islands fade into the sky. Fog is
