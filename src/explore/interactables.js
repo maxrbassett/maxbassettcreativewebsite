@@ -1,11 +1,14 @@
 import { projects } from '../data/projects'
 import {
   trailersPromos,
+  socialShortForm,
   narrativeDocumentary,
   aiVideos,
 } from '../data/videos'
+import { internalTools } from '../data/internalTools'
+import { personalProjects } from '../data/personalProjects'
 import maxProfile from '../assets/maxProfile2.jpg'
-import { wallSlots, NPC_POSITION, NPC_ROTATION_Y } from './worldLayout'
+import { wallSlots, coveSlots, BUILDING_ROOMS, NPC_POSITION, NPC_ROTATION_Y } from './worldLayout'
 
 /* Interactive wall-mounted screens inside the museum islands. Each entry has a
  * `type` that tells InteractionOverlay which content panel to render on
@@ -24,32 +27,92 @@ import { wallSlots, NPC_POSITION, NPC_ROTATION_Y } from './worldLayout'
 const bySlug = (slug) => projects.find((p) => p.slug === slug)
 const PROXIMITY = 5
 
-// --- Software Dev museum: 5 project screens around the wall ---
+// --- Software Dev museum, "Public Web" room: the live client sites, all on
+// the one labeled wall left of the entrance. ---
 const devSlugs = ['typenex', 'artchi', 'timpine-therapy', 'chicago-venture', 'emergent-trading']
-const devSlots = wallSlots('dev', devSlugs.length)
-const devKiosks = devSlugs.map((slug, i) => ({
+const webSlots = coveSlots('dev', 'web')
+const devKiosks = devSlugs.slice(0, webSlots.length).map((slug, i) => ({
   id: slug,
   type: 'project',
   radius: PROXIMITY,
-  position: devSlots[i].position,
-  rotationY: devSlots[i].rotationY,
+  position: webSlots[i].position,
+  rotationY: webSlots[i].rotationY,
   project: bySlug(slug),
 }))
 
-// --- Videography museum: one screen per horizontal video, around the wall.
-// (The 16:9 categories — trailers, narrative, AI; the vertical Social/Short
-// Form set is omitted here since the wall screens are horizontal.) Walk-up
-// plays the video in an iframe popup. ---
-const horizontalVideos = [...trailersPromos, ...narrativeDocumentary, ...aiVideos]
-const videoSlots = wallSlots('video', horizontalVideos.length)
-const videoKiosks = horizontalVideos.map((v, i) => ({
-  id: `vid-${v.youtubeId}`, // youtubeId is unique; some data `id`s repeat
-  type: 'video',
+// --- "Personal Projects" room: things built for the love of it (incl. this
+// 3D world), on the wall right of the entrance. ---
+const personalSlots = coveSlots('dev', 'personal')
+const personalKiosks = personalProjects.slice(0, personalSlots.length).map((p, i) => ({
+  id: `personal-${p.slug}`,
+  type: 'project',
   radius: PROXIMITY,
-  position: videoSlots[i].position,
-  rotationY: videoSlots[i].rotationY,
-  video: { youtubeId: v.youtubeId, title: v.title },
+  position: personalSlots[i].position,
+  rotationY: personalSlots[i].rotationY,
+  project: p,
 }))
+
+// --- Software Dev museum, "Internal Tools" room: confidential work shown via
+// Problem → Approach → Impact panels (no UI shown). Curated to the room. ---
+const internalSlots = coveSlots('dev', 'internal')
+const internalKiosks = internalTools.slice(0, internalSlots.length).map((tool, i) => ({
+  id: tool.id,
+  type: 'internal',
+  radius: PROXIMITY,
+  position: internalSlots[i].position,
+  rotationY: internalSlots[i].rotationY,
+  internal: tool,
+}))
+
+// --- Videography museum: one room (cove) per category, each curated to its
+// room's screen count. Trailers/Narrative/AI are 16:9; Social & Short Form is
+// 9:16 (vertical), flagged so the screen renders portrait. Walk-up plays the
+// video in an iframe popup. ---
+const VIDEO_SOURCES = {
+  trailers: trailersPromos,
+  social: socialShortForm,
+  narrative: narrativeDocumentary,
+  ai: aiVideos,
+}
+// Optional explicit curation/order per room (by youtubeId). The entrance room
+// (trailers) fills flank-by-flank, so this order also keeps the Believer (idx 1
+// → left flank) and General Conference (idx 3 → right flank) trailers apart.
+const VIDEO_CURATION = {
+  trailers: [
+    '1qE5tWuvYzQ', // Old Town
+    'Mx7fu1LC6K4', // Believer (recut music video)
+    'MZ1u0Dejh_Y', // Pink Panther (recut)
+    'UL5YojeR598', // General Conference
+  ],
+  social: [
+    '7uti1teAqFU', // Fulton Lee Demo 1
+    'iLdk56kHwxY', // Fulton Lee Demo 2
+    'b_ORalcozsU', // Global Youth Service Day
+    '8eLL2YdVL5k', // Giving Machine 2024
+    'r4FtGcrqeZI', // Inspiration | It's Okay to Cry  (swapped in for Jena's Story)
+  ],
+}
+const pickVideos = (key, n) => {
+  const src = VIDEO_SOURCES[key] || []
+  const ids = VIDEO_CURATION[key]
+  const chosen = ids
+    ? ids.map((id) => src.find((v) => v.youtubeId === id)).filter(Boolean)
+    : src
+  return chosen.slice(0, n)
+}
+const videoKiosks = BUILDING_ROOMS.video.flatMap((room) => {
+  const slots = coveSlots('video', room.key)
+  const vids = pickVideos(room.key, slots.length)
+  return vids.map((v, i) => ({
+    id: `vid-${v.youtubeId}`, // youtubeId is unique; some data `id`s repeat
+    type: 'video',
+    radius: PROXIMITY,
+    vertical: room.key === 'social',
+    position: slots[i].position,
+    rotationY: slots[i].rotationY,
+    video: { youtubeId: v.youtubeId, title: v.title },
+  }))
+})
 
 // --- About museum: one merged stop (bio + photo + get-in-touch). Bio text
 // mirrors src/pages/About.jsx; contactText mirrors src/pages/Contact.jsx. ---
@@ -91,7 +154,7 @@ export const NPC = {
   },
 }
 
-export const INTERACTABLES = [...devKiosks, ...videoKiosks, aboutKiosk, NPC]
+export const INTERACTABLES = [...devKiosks, ...personalKiosks, ...internalKiosks, ...videoKiosks, aboutKiosk, NPC]
 
 /* Type-agnostic accessors so the in-world screen (texture + proximity label)
  * doesn't need to branch on type. */
@@ -100,15 +163,19 @@ export const interactableTitle = (it) => {
     case 'video': return it.video.title
     case 'about': return 'About Max'
     case 'npc': return it.npc.name
+    case 'internal': return it.internal.title
     default: return it.project.title
   }
 }
 
 export const interactableImage = (it) => {
   switch (it.type) {
+    // Same thumbnail the main site uses (hqdefault); vertical screens center-crop
+    // it to fill the portrait panel, matching the site's object-fit: cover cards.
     case 'video': return `https://img.youtube.com/vi/${it.video.youtubeId}/hqdefault.jpg`
     case 'about': return it.about.photo
     case 'npc': return null
+    case 'internal': return it.internal.image || null
     default: return it.project.image
   }
 }

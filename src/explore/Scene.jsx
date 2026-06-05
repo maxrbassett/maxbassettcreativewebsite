@@ -21,6 +21,8 @@ import {
   ZONES,
   BUILDING_THEME,
   NPC_POSITION,
+  BUILDING_ROOMS,
+  partitionWalls,
 } from './worldLayout'
 
 /* ------------------------------------------------------------------
@@ -262,6 +264,16 @@ const WALL_OBSTACLES = BRIDGES.flatMap((b) => {
     : [b.cx + BRIDGE_HALF_WIDTH, b.cx - BRIDGE_HALF_WIDTH].map((w) => ({ normal: 'x', w, min: b.cz - half, max: b.cz + half }))
 })
 
+// Interior partition walls (the cove dividers) as arbitrary-angle segment
+// keep-outs — a generalization of WALL_OBSTACLES to any orientation. Each is a
+// segment A→B with a half-thickness slab; doorway gaps are simply absent from
+// the segment list (partitionWalls splits each wall around its gap). Code-based
+// like the others so the thin walls don't tunnel at sprint speed (16).
+const PARTITION_KEEPOUT = 0.6 // half wall thickness + player margin
+const PARTITION_OBSTACLES = Object.keys(BUILDING_ROOMS).flatMap((id) =>
+  partitionWalls(id).flatMap((w) => w.segments.map((s) => ({ ...s, half: PARTITION_KEEPOUT })))
+)
+
 // Stone gateway at a bridge's hub-side entrance: two chunky posts flanking the
 // tunnel mouth + a thick lintel, with the destination name engraved into the
 // stone (real 3D Text on both faces, so it reads coming and going). The posts
@@ -395,6 +407,33 @@ function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
         body.setTranslation({ x: wl.w + side * WALL_KEEPOUT, y: pos.y, z: pos.z }, true)
         const v = body.linvel()
         if (side * v.x < 0) body.setLinvel({ x: 0, y: v.y, z: v.z }, true)
+        return
+      }
+    }
+
+    // Keep-out: interior partition walls (arbitrary-angle segments). Project
+    // the player onto each segment (clamped to its span); if inside the slab,
+    // snap to the surface and remove the velocity component crossing the wall
+    // so you slide along it. Position-based, so no tunneling at sprint speed.
+    for (const s of PARTITION_OBSTACLES) {
+      const dx = s.bx - s.ax
+      const dz = s.bz - s.az
+      const L2 = dx * dx + dz * dz
+      let t = ((pos.x - s.ax) * dx + (pos.z - s.az) * dz) / L2
+      t = t < 0 ? 0 : t > 1 ? 1 : t
+      const qx = s.ax + t * dx
+      const qz = s.az + t * dz
+      const ox = pos.x - qx
+      const oz = pos.z - qz
+      const d = Math.hypot(ox, oz)
+      if (d < s.half) {
+        const nd = d || 1e-6
+        const nx = ox / nd
+        const nz = oz / nd
+        body.setTranslation({ x: qx + nx * s.half, y: pos.y, z: qz + nz * s.half }, true)
+        const v = body.linvel()
+        const inward = -(v.x * nx + v.z * nz)
+        if (inward > 0) body.setLinvel({ x: v.x + inward * nx, y: v.y, z: v.z + inward * nz }, true)
         return
       }
     }

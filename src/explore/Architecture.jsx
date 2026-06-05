@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { Text } from '@react-three/drei'
 import {
   ISLAND_TOP_Y,
   BRIDGE_HALF_WIDTH,
@@ -8,6 +9,11 @@ import {
   doorHalfAngle,
   entranceAngle,
   BUILDING_THEME,
+  BUILDING_ROOMS,
+  PARTITION_THICKNESS,
+  partitionWalls,
+  roomHeaderAnchor,
+  roomCenter,
 } from './worldLayout'
 
 /* ------------------------------------------------------------------
@@ -101,13 +107,131 @@ function BridgeTunnel({ axis, cx, cz, length, to }) {
   )
 }
 
-/* All museum shells + covered tunnels. Pass the shared ISLANDS / BRIDGES. */
+/* Interior partition walls that carve a building into walled-off rooms. Each
+ * wall is a flat box along its radial segment(s) (split around a doorway gap),
+ * with a lintel filling the gap above doorway height so it reads as a door.
+ * Geometry comes from worldLayout's partitionWalls() (shared with collision). */
+function PartitionWalls({ island }) {
+  const { id, radius: r } = island
+  const [cx, , cz] = island.position
+  const theme = BUILDING_THEME[id] || BUILDING_THEME.dev
+  const H = wallHeight(r)
+  const doorH = Math.min(TUNNEL_HEIGHT, H)
+  const walls = partitionWalls(id)
+  return (
+    <group position={[cx, ISLAND_TOP_Y, cz]}>
+      {walls.flatMap((w, wi) => {
+        const meshes = w.segments.map((s, si) => {
+          const dx = s.bx - s.ax
+          const dz = s.bz - s.az
+          const len = Math.hypot(dx, dz)
+          // Box's local +X aligns to world direction α via rotationY = −α.
+          const rotY = Math.atan2(dz, dx)
+          const mx = (s.ax + s.bx) / 2 - cx
+          const mz = (s.az + s.bz) / 2 - cz
+          return (
+            <mesh key={`w${wi}s${si}`} position={[mx, H / 2, mz]} rotation={[0, -rotY, 0]} castShadow receiveShadow>
+              <boxGeometry args={[len, H, PARTITION_THICKNESS]} />
+              <meshStandardMaterial color={theme.wall} side={THREE.DoubleSide} roughness={0.92} />
+            </mesh>
+          )
+        })
+        // Lintel over the doorway gap (only the wall above the opening).
+        const lintelH = H - doorH
+        if (lintelH > 0.05) {
+          const gmid = (w.gap.inner + w.gap.outer) / 2
+          meshes.push(
+            <mesh
+              key={`w${wi}lintel`}
+              position={[Math.cos(w.angle) * gmid, (doorH + H) / 2, Math.sin(w.angle) * gmid]}
+              rotation={[0, -w.angle, 0]}
+              receiveShadow
+            >
+              <boxGeometry args={[w.gap.outer - w.gap.inner, lintelH, PARTITION_THICKNESS]} />
+              <meshStandardMaterial color={theme.wall} side={THREE.DoubleSide} roughness={0.92} />
+            </mesh>
+          )
+        }
+        return meshes
+      })}
+    </group>
+  )
+}
+
+/* Engraved room-name signs (same look as the entrance archways: white fill,
+ * building-colored outline, Bebas Neue) above each room's screens. */
+function RoomHeaders({ island }) {
+  const { id } = island
+  const theme = BUILDING_THEME[id] || BUILDING_THEME.dev
+  return (BUILDING_ROOMS[id] || []).map((room) => {
+    const a = roomHeaderAnchor(id, room.key)
+    return (
+      <Text
+        key={room.key}
+        position={a.position}
+        rotation={[0, a.rotationY, 0]}
+        font="/fonts/BebasNeue-Regular.ttf"
+        fontSize={1.15}
+        letterSpacing={0.04}
+        maxWidth={14}
+        textAlign="center"
+        anchorX="center"
+        anchorY="middle"
+        color="#ffffff"
+        outlineWidth={0.06}
+        outlineColor={theme.engrave}
+      >
+        {room.label}
+      </Text>
+    )
+  })
+}
+
+/* One accent light per room — the building's single central light can't reach
+ * past the new partition walls, so each room gets its own. */
+function RoomLights({ island }) {
+  const { id, radius: r } = island
+  const [cx, , cz] = island.position
+  const theme = BUILDING_THEME[id] || BUILDING_THEME.dev
+  const H = wallHeight(r)
+  const rooms = BUILDING_ROOMS[id] || []
+  return rooms.map((room, idx) => {
+    const a = roomCenter(id, idx)
+    const x = cx + Math.cos(a) * (r * 0.5)
+    const z = cz + Math.sin(a) * (r * 0.5)
+    return (
+      <pointLight
+        key={room.key}
+        position={[x, H * 0.72, z]}
+        color={theme.light}
+        intensity={1.0}
+        distance={r * 0.95}
+        decay={1}
+      />
+    )
+  })
+}
+
+/* All museum shells + covered tunnels. Pass the shared ISLANDS / BRIDGES.
+ * Buildings listed in BUILDING_ROOMS also get interior rooms (partition walls +
+ * engraved headers + per-room lights). */
 export function Museums({ islands, bridges }) {
   return (
     <>
       {islands
         .filter((i) => SECTION_IDS.includes(i.id))
-        .map((i) => <Building key={i.id} island={i} />)}
+        .map((i) => (
+          <group key={i.id}>
+            <Building island={i} />
+            {BUILDING_ROOMS[i.id] && (
+              <>
+                <PartitionWalls island={i} />
+                <RoomHeaders island={i} />
+                <RoomLights island={i} />
+              </>
+            )}
+          </group>
+        ))}
       {bridges.map((b, idx) => <BridgeTunnel key={idx} {...b} />)}
     </>
   )

@@ -12,25 +12,34 @@ import { useExplore } from './useExplore'
  *
  * No colliders: screens sit just outside the walkable boundary, so the
  * BoundaryGuard already stops the player before reaching them. */
-const SCREEN_POS = [0, SCREEN_CENTER_Y, 0.13]
-const SCREEN_ARGS = [4.2, 2.5]
+// Screen dimensions: horizontal (16:9) by default, vertical (9:16) for social
+// shorts. [screen plane, frame box, frame height].
+const HORIZONTAL = { screen: [4.2, 2.5], frame: [4.6, 3.0, 0.22], frameH: 3.0 }
+const VERTICAL = { screen: [2.4, 4.27], frame: [2.7, 4.6, 0.22], frameH: 4.6 }
+const SCREEN_Z = 0.13
 
 // Screen face split in two so the texture hook is never called conditionally:
 // a textured preview when the kiosk has an image, else a solid emissive panel.
-function TexturedScreen({ src }) {
+// `crop` (<1) center-crops the texture's width — used for vertical screens so the
+// hqdefault thumbnail fills a portrait panel (emulates the site's object-fit:cover).
+function TexturedScreen({ src, args, crop }) {
   const tex = useTexture(src)
+  if (crop) {
+    tex.center.set(0.5, 0.5)
+    tex.repeat.set(crop, 1)
+  }
   return (
-    <mesh position={SCREEN_POS}>
-      <planeGeometry args={SCREEN_ARGS} />
+    <mesh position={[0, SCREEN_CENTER_Y, SCREEN_Z]}>
+      <planeGeometry args={args} />
       <meshBasicMaterial map={tex} toneMapped={false} />
     </mesh>
   )
 }
 
-function ColorScreen({ color = '#cda6e6' }) {
+function ColorScreen({ color = '#cda6e6', args }) {
   return (
-    <mesh position={SCREEN_POS}>
-      <planeGeometry args={SCREEN_ARGS} />
+    <mesh position={[0, SCREEN_CENTER_Y, SCREEN_Z]}>
+      <planeGeometry args={args} />
       <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.6} toneMapped={false} />
     </mesh>
   )
@@ -38,18 +47,23 @@ function ColorScreen({ color = '#cda6e6' }) {
 
 function Kiosk({ data }) {
   const img = interactableImage(data)
+  const dims = data.vertical ? VERTICAL : HORIZONTAL
+  // Cover-crop the 4:3 hqdefault thumbnail to the portrait panel's aspect
+  // (matches the main site's object-fit: cover on its vertical cards).
+  const crop = data.vertical ? (dims.screen[0] / dims.screen[1]) / (4 / 3) : null
+  const orbY = SCREEN_CENTER_Y + dims.frameH / 2 + 0.7 // just above the frame
   return (
     <group position={data.position} rotation={[0, data.rotationY || 0, 0]}>
       {/* Framed panel mounted flush on the wall (faces local +z, into the room) */}
       <mesh position={[0, SCREEN_CENTER_Y, 0]} castShadow>
-        <boxGeometry args={[4.6, 3.0, 0.22]} />
+        <boxGeometry args={dims.frame} />
         <meshStandardMaterial color="#141414" metalness={0.3} roughness={0.6} />
       </mesh>
-      {img ? <TexturedScreen src={img} /> : <ColorScreen />}
+      {img ? <TexturedScreen src={img} args={dims.screen} crop={crop} /> : <ColorScreen args={dims.screen} />}
 
       {/* Floating interact indicator above the screen */}
       <Float speed={3} floatIntensity={0.9} rotationIntensity={0.7}>
-        <mesh position={[0, SCREEN_CENTER_Y + 2.0, 0]} castShadow>
+        <mesh position={[0, orbY, 0]} castShadow>
           <octahedronGeometry args={[0.32, 0]} />
           <meshStandardMaterial color="#A46B44" emissive="#A46B44" emissiveIntensity={0.7} />
         </mesh>
