@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import { Link } from 'react-router-dom'
@@ -6,8 +6,45 @@ import Scene from './Scene'
 import TouchControls from './TouchControls'
 import InteractionOverlay from './InteractionOverlay'
 import { useExplore } from './useExplore'
+import { audio } from './audio'
 import { NPC } from './interactables'
 import './explore.css'
+
+// Flat line icons (white, matching the Exit text) for the mute toggle.
+function SpeakerOnIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18.5 6a9 9 0 0 1 0 12" />
+    </svg>
+  )
+}
+
+function SpeakerOffIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4z" />
+      <line x1="16" y1="9" x2="22" y2="15" />
+      <line x1="22" y1="9" x2="16" y2="15" />
+    </svg>
+  )
+}
+
+// Mute/unmute toggle for all world audio (persisted in audio.toggleMute).
+function SoundToggle() {
+  const [muted, setMuted] = useState(audio.muted)
+  return (
+    <button
+      className="explore-mute"
+      onClick={() => setMuted(audio.toggleMute())}
+      aria-label={muted ? 'Unmute' : 'Mute'}
+      title={muted ? 'Unmute sound' : 'Mute sound'}
+    >
+      {muted ? <SpeakerOffIcon /> : <SpeakerOnIcon />}
+    </button>
+  )
+}
 
 /* ------------------------------------------------------------------
  * STEP 1 SPIKE — page shell
@@ -42,20 +79,38 @@ export default function ExplorePage() {
   const activeType = useExplore((s) => s.active?.type)
   const panelOpen = activeType != null && activeType !== 'npc'
 
+  // Enter the world: this click/keypress is the user gesture that unlocks audio
+  // (browsers block autoplay), so we start the ambient beds + greeting here.
+  const begin = useCallback(() => {
+    audio.enter()
+    audio.playGreeting()
+    setStarted(true)
+  }, [])
+
   // Let the intro card be dismissed with Enter (in addition to the button).
   useEffect(() => {
     if (started) return
     const onKey = (e) => {
-      if (e.key === 'Enter') setStarted(true)
+      if (e.key === 'Enter') begin()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [started])
+  }, [started, begin])
 
   // Auto-greet: open Max's welcome dialogue once, as soon as you enter the world.
   useEffect(() => {
     if (started) useExplore.getState().open(NPC)
   }, [started])
+
+  // Magic chime whenever a panel/dialogue opens (active changes to a new id).
+  // Lives here (always mounted) so it fires even while the Scene is still
+  // loading. audio.playChime() no-ops until audio has been unlocked on entry.
+  useEffect(() => {
+    return useExplore.subscribe((state, prevState) => {
+      const id = state.active?.id ?? null
+      if (id && id !== (prevState.active?.id ?? null)) audio.playChime()
+    })
+  }, [])
 
   // No WebGL → never show a blank canvas; send them back to the real site.
   if (!supported) {
@@ -103,6 +158,8 @@ export default function ExplorePage() {
         </div>
       )}
 
+      {started && <SoundToggle />}
+
       <Link to="/" className="explore-exit" aria-label="Exit the 3D world">
         ✕ Exit
       </Link>
@@ -132,7 +189,7 @@ export default function ExplorePage() {
                 </>
               )}
             </ul>
-            <button className="explore-card__btn" onClick={() => setStarted(true)}>
+            <button className="explore-card__btn" onClick={begin}>
               Enter the World
             </button>
             <Link to="/" className="explore-card__skip">

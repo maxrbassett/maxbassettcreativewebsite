@@ -41,6 +41,50 @@ export const NPC_ROTATION_Y = Math.atan2(SPAWN[0] - NPC_POSITION[0], SPAWN[2] - 
 
 export const islandById = (id) => ISLANDS.find((i) => i.id === id)
 
+// "Indoors" = standing within a section building's footprint (its island). The
+// hub and the bridges are open-air. Used to crossfade the ambient sound beds.
+export function isIndoor(x, z) {
+  return SECTION_IDS.some((id) => {
+    const isl = islandById(id)
+    return Math.hypot(x - isl.position[0], z - isl.position[2]) <= isl.radius
+  })
+}
+
+// On a covered bridge/tunnel deck? (Used to duck the outdoor ambience early —
+// the tunnel is the moment the world starts to feel enclosed.)
+export function onBridge(x, z) {
+  return BRIDGES.some(
+    (b) => x >= b.zone.minX && x <= b.zone.maxX && z >= b.zone.minZ && z <= b.zone.maxZ
+  )
+}
+
+// Progress along whichever tunnel you're in: 0 at the hub mouth → 1 at the
+// building mouth, or null if not in a tunnel. Lets the outdoor ambience fade
+// out smoothly across the tunnel so it's fully silent by the building end.
+export function tunnelProgress(x, z) {
+  for (const b of BRIDGES) {
+    const zn = b.zone
+    if (x >= zn.minX && x <= zn.maxX && z >= zn.minZ && z <= zn.maxZ) {
+      const hub = islandById(b.from).position
+      const sec = islandById(b.to).position
+      if (b.axis === 'x') {
+        const s = Math.sign(sec[0] - hub[0])
+        return clamp(((x - b.hubEnd[0]) * s) / b.length, 0, 1)
+      }
+      const s = Math.sign(sec[2] - hub[2])
+      return clamp(((z - b.hubEnd[2]) * s) / b.length, 0, 1)
+    }
+  }
+  return null
+}
+
+// Footstep surface from position: 'grass' on the open hub, 'hard' on the bridge
+// decks and inside the (stone/marble) buildings. A logical map of the floor,
+// independent of its visual material.
+export function surfaceAt(x, z) {
+  return onBridge(x, z) || isIndoor(x, z) ? 'hard' : 'grass'
+}
+
 // World-space angle (atan2(dz,dx)) from an island's center toward the hub —
 // where its doorway, archway, and bridge all meet.
 export const entranceAngle = (island) => {
@@ -149,12 +193,14 @@ export function wallSlots(islandId, count) {
 // the entrance, split onto two flanks by the doorway). A room may instead pin
 // an explicit outer-wall arc via `arcDeg: [startDeg, endDeg]` (world angles) —
 // used by Software Dev so Public Web and Personal Projects each occupy a whole
-// wall flanking the entrance, with Internal Tools across the back.
+// wall flanking the entrance, with Internal Tools and Management splitting the
+// back wall (left/right of the rear partition).
 export const BUILDING_ROOMS = {
   dev: [
     { key: 'web', label: 'Public Web', screenCount: 5, arcDeg: [96, 180] }, // left of entrance (labeled wall)
     { key: 'personal', label: 'Personal Projects', screenCount: 3, arcDeg: [0, 84] }, // right of entrance
-    { key: 'internal', label: 'Internal Tools', screenCount: 3, arcDeg: [200, 340] }, // back wall
+    { key: 'internal', label: 'Internal Tools', screenCount: 4, arcDeg: [185, 265] }, // back wall, left of rear partition
+    { key: 'management', label: 'Management', screenCount: 4, arcDeg: [275, 355] }, // back wall, right of rear partition
   ],
   video: [
     { key: 'trailers', label: 'Trailers & Promos', screenCount: 4 }, // entrance room (2 per flank)
@@ -165,10 +211,12 @@ export const BUILDING_ROOMS = {
 }
 
 // Explicit partition-wall angles (world radians) for buildings whose rooms
-// aren't auto equal-wedges. Dev = a single diameter wall (top rooms vs. the
-// back Internal room); the web/personal split is just the open main entrance.
+// aren't auto equal-wedges. Dev = a diameter wall (0/π) separating the two
+// front rooms from the back, plus a rear wall at 3π/2 (270°, straight back from
+// the entrance) splitting the back into Internal Tools and Management. The
+// web/personal split at the front is just the open main entrance (no wall).
 export const BUILDING_PARTITIONS = {
-  dev: [0, Math.PI],
+  dev: [0, Math.PI, 1.5 * Math.PI],
 }
 
 export const COVE_DOOR_WIDTH = 3.4 // doorway-gap span along a partition wall

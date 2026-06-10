@@ -1,6 +1,0 @@
-/* This file is imported by all video category pages.
-   Shared styles beyond what's in index.css live here. */
-
-.page-title span {
-  color: var(--color-accent);
-}
