@@ -275,7 +275,11 @@ export function coveSlots(islandId, roomKey) {
 export function roomHeaderAnchor(islandId, roomKey) {
   const isl = islandById(islandId)
   const [cx, , cz] = isl.position
-  const R = isl.radius - SCREEN_MOUNT_INSET - 0.2
+  // Headers are wide FLAT text planes on a CURVED wall: their ends bow outward
+  // from the chord, so they must sit far enough toward the room center that even
+  // those ends clear the (inset, thick) inner wall surface. -1.2 keeps a wide
+  // label (maxWidth 14 → ~7 half-width) in front of the inner shell.
+  const R = isl.radius - SCREEN_MOUNT_INSET - 1.2
   const idx = BUILDING_ROOMS[islandId].findIndex((r) => r.key === roomKey)
   const center = roomCenter(islandId, idx)
   const x = cx + Math.cos(center) * R

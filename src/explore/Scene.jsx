@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { KeyboardControls, useGLTF, useAnimations, Sky, Text, Clouds, Cloud } from '@react-three/drei'
+import { KeyboardControls, useGLTF, useAnimations, Sky, Text, Clouds, Cloud, Environment, RoundedBox } from '@react-three/drei'
 import { Physics, RigidBody, CylinderCollider, CuboidCollider } from '@react-three/rapier'
 import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
@@ -8,7 +8,8 @@ import Ecctrl, { useGame } from 'ecctrl'
 import { useExplore } from './useExplore'
 import { Kiosks, ProximityDetector } from './Kiosks'
 import { WorldDecor } from './Decor'
-import { Museums } from './Architecture'
+import { Museums, GlassMaterial, BuildingMaterial } from './Architecture'
+import { useMarbleSet } from './textures'
 import { Npc } from './Npc'
 import {
   ISLAND_TOP_Y,
@@ -185,34 +186,43 @@ function CharacterAnimation({ characterURL, animationSet, children }) {
  * shared worldLayout module (imported above), so Scene, Architecture, and
  * interactables agree on a single layout. */
 
-function Island({ position, radius, color }) {
+function Island({ position, radius }) {
   const coneHeight = radius * 0.6
+  // Flat dirt-brown rim + underside cone (no texture). Grass is a SEPARATE flat
+  // disc on top — it sits just above the slab's top cap.
+  const DIRT = '#6b4e34'
+
   return (
     <group position={position}>
       <RigidBody type="fixed" colliders={false}>
-        {/* Grassy top */}
+        {/* Dirt land slab (top hidden by the grass disc) */}
         <mesh receiveShadow position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}>
           <cylinderGeometry args={[radius, radius, ISLAND_THICKNESS, 48]} />
-          <meshStandardMaterial color={color} />
+          <meshStandardMaterial color={DIRT} roughness={1} />
         </mesh>
         <CylinderCollider
           args={[ISLAND_THICKNESS / 2, radius]}
           position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}
         />
-        {/* Rocky underside (visual only), apex pointing down */}
+        {/* Grass ground — solid light green */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, ISLAND_TOP_Y + 0.02, 0]} receiveShadow>
+          <circleGeometry args={[radius, 64]} />
+          <meshStandardMaterial color="#8fc25e" roughness={1} />
+        </mesh>
+        {/* Dirt underside, apex pointing down */}
         <mesh
           position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS - coneHeight / 2, 0]}
           rotation={[Math.PI, 0, 0]}
         >
           <coneGeometry args={[radius - 1, coneHeight, 48]} />
-          <meshStandardMaterial color="#8a6b4f" />
+          <meshStandardMaterial color={DIRT} roughness={1} />
         </mesh>
       </RigidBody>
     </group>
   )
 }
 
-function Bridge({ axis, cx, cz, length }) {
+function Bridge({ axis, cx, cz, length, to }) {
   // Just the walkable deck now — the side walls + ceiling are the covered
   // tunnel (Architecture's BridgeTunnel). Lift slightly above the island
   // surface so the overlapping ends don't z-fight with the coplanar tops.
@@ -220,11 +230,12 @@ function Bridge({ axis, cx, cz, length }) {
   const deckY = ISLAND_TOP_Y + lift - 0.2
   const width = BRIDGE_HALF_WIDTH * 2
   const deckArgs = axis === 'x' ? [length, 0.4, width] : [width, 0.4, length]
+  const glass = to === 'video' // experiment: see-through glass deck to Videography
   return (
     <RigidBody type="fixed" colliders={false}>
       <mesh receiveShadow position={[cx, deckY, cz]}>
         <boxGeometry args={deckArgs} />
-        <meshStandardMaterial color="#9a9690" />
+        {glass ? <GlassMaterial opacity={0.3} /> : <meshStandardMaterial color="#9a9690" />}
       </mesh>
       <CuboidCollider args={[deckArgs[0] / 2, 0.2, deckArgs[2] / 2]} position={[cx, deckY, cz]} />
     </RigidBody>
@@ -274,11 +285,12 @@ const PARTITION_OBSTACLES = Object.keys(BUILDING_ROOMS).flatMap((id) =>
   partitionWalls(id).flatMap((w) => w.segments.map((s) => ({ ...s, half: PARTITION_KEEPOUT })))
 )
 
-// Stone gateway at a bridge's hub-side entrance: two chunky posts flanking the
+// Marble gateway at a bridge's hub-side entrance: two chunky posts flanking the
 // tunnel mouth + a thick lintel, with the destination name engraved into the
-// stone (real 3D Text on both faces, so it reads coming and going). The posts
+// marble (real 3D Text on both faces, so it reads coming and going). The posts
 // are solid (see POST_OBSTACLES) — you walk through the middle, not through them.
-function Archway({ hubEnd, axis, label, color = '#332f29' }) {
+// `wall` tints the marble to match the building this gateway leads to.
+function Archway({ hubEnd, axis, label, color = '#332f29', wall = '#cdd6e2', stone }) {
   const [x, , z] = hubEnd
   const postThick = ARCH_POST_THICK
   const postH = 5 // matches the tunnel height
@@ -301,20 +313,18 @@ function Archway({ hubEnd, axis, label, color = '#332f29' }) {
     ? [{ pos: [x + faceOff, lintelY, z], rotY: Math.PI / 2 }, { pos: [x - faceOff, lintelY, z], rotY: -Math.PI / 2 }]
     : [{ pos: [x, lintelY, z + faceOff], rotY: 0 }, { pos: [x, lintelY, z - faceOff], rotY: Math.PI }]
 
+  // Same marble material as the buildings, tinted to the destination building.
   return (
     <group>
-      <mesh position={postA} castShadow receiveShadow>
-        <boxGeometry args={[postThick, postH, postThick]} />
-        <meshStandardMaterial color="#aca596" roughness={1} />
-      </mesh>
-      <mesh position={postB} castShadow receiveShadow>
-        <boxGeometry args={[postThick, postH, postThick]} />
-        <meshStandardMaterial color="#aca596" roughness={1} />
-      </mesh>
-      <mesh position={[x, lintelY, z]} castShadow receiveShadow>
-        <boxGeometry args={lintelArgs} />
-        <meshStandardMaterial color="#b8b2a5" roughness={1} />
-      </mesh>
+      <RoundedBox args={[postThick, postH, postThick]} radius={0.12} smoothness={2} position={postA} castShadow receiveShadow>
+        <BuildingMaterial tex={stone} tint={wall} />
+      </RoundedBox>
+      <RoundedBox args={[postThick, postH, postThick]} radius={0.12} smoothness={2} position={postB} castShadow receiveShadow>
+        <BuildingMaterial tex={stone} tint={wall} />
+      </RoundedBox>
+      <RoundedBox args={lintelArgs} radius={0.12} smoothness={2} position={[x, lintelY, z]} castShadow receiveShadow>
+        <BuildingMaterial tex={stone} tint={wall} />
+      </RoundedBox>
       {faces.map((f, i) => (
         <Text
           key={i}
@@ -335,6 +345,13 @@ function Archway({ hubEnd, axis, label, color = '#332f29' }) {
       ))}
     </group>
   )
+}
+
+/* Marble-textured archway. Loads the shared CC0 marble set tiled for the
+ * posts/lintel; used for every bridge gateway so they match the buildings. */
+function MarbleArchway(props) {
+  const stone = useMarbleSet(2, 2)
+  return <Archway {...props} stone={stone} />
 }
 
 /* Keep the player within the walkable zones (islands + bridge). "Safe" if
@@ -563,19 +580,30 @@ export default function Scene() {
         mieDirectionalG={0.85}
       />
 
-      {/* Outdoor light: a hemisphere fill (cool sky above, warm ground bounce)
-          plus a warm low-angle key light aligned with the Sky's sun. The key
-          light is named "followLight" so ecctrl keeps its shadow centered on
-          the character as it moves. */}
-      <hemisphereLight args={['#bcd8f5', '#e7d2a4', 0.6]} />
-      <ambientLight intensity={0.25} />
+      {/* Image-based lighting from a CC0 HDRI: gives realistic reflections on
+          the glass + stone and a natural ambient fill. Kept at a modest
+          intensity so it complements (not replaces) the lights below; the drei
+          <Sky> stays the visible backdrop (background not set). As more surfaces
+          go realistic we can lean on this more and dial the flat lights down. */}
+      <Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.5} />
+
+      {/* Outdoor light: a moderate hemisphere/ambient fill plus a warm low-angle
+          key light aligned with the Sky's sun. Fill is dialed back from the old
+          flat-flood values and the scene leans more on the HDRI + the key, so
+          surface orientation reads as form. The key light is named "followLight"
+          so ecctrl keeps its shadow centered on the character as it moves. */}
+      <hemisphereLight args={['#bcd8f5', '#e7d2a4', 0.45]} />
+      <ambientLight intensity={0.18} />
       <directionalLight
         name="followLight"
         position={SUN_POS}
-        intensity={1.4}
+        intensity={1.6}
         color="#ffe7c2"
         castShadow
         shadow-mapSize={[2048, 2048]}
+        shadow-radius={6}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.04}
         shadow-camera-left={-30}
         shadow-camera-right={30}
         shadow-camera-top={30}
@@ -665,12 +693,13 @@ export default function Scene() {
           {/* Labeled gateway at each bridge's hub-side entrance (named for
               the page it leads to). Replaces the old floating island labels. */}
           {BRIDGES.map((b) => (
-            <Archway
+            <MarbleArchway
               key={`arch-${b.to}`}
               hubEnd={b.hubEnd}
               axis={b.axis}
               label={islandById(b.to).label}
               color={BUILDING_THEME[b.to]?.engrave}
+              wall={BUILDING_THEME[b.to]?.wall}
             />
           ))}
           <BoundaryGuard bodyRef={characterRef} />
