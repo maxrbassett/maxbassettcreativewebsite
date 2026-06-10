@@ -6,6 +6,7 @@ import { SkeletonUtils } from 'three-stdlib'
 import * as THREE from 'three'
 import Ecctrl, { useGame } from 'ecctrl'
 import { useExplore } from './useExplore'
+import { audio } from './audio'
 import { Kiosks, ProximityDetector } from './Kiosks'
 import { WorldDecor } from './Decor'
 import { Museums, GlassMaterial, BuildingMaterial } from './Architecture'
@@ -17,6 +18,7 @@ import {
   BRIDGE_HALF_WIDTH,
   ISLANDS,
   SPAWN,
+  SECTION_IDS,
   islandById,
   BRIDGES,
   ZONES,
@@ -24,6 +26,9 @@ import {
   NPC_POSITION,
   BUILDING_ROOMS,
   partitionWalls,
+  surfaceAt,
+  isIndoor,
+  tunnelProgress,
 } from './worldLayout'
 
 /* ------------------------------------------------------------------
@@ -186,10 +191,11 @@ function CharacterAnimation({ characterURL, animationSet, children }) {
  * shared worldLayout module (imported above), so Scene, Architecture, and
  * interactables agree on a single layout. */
 
-function Island({ position, radius }) {
+function Island({ position, radius, floor = '#8fc25e' }) {
   const coneHeight = radius * 0.6
-  // Flat dirt-brown rim + underside cone (no texture). Grass is a SEPARATE flat
-  // disc on top — it sits just above the slab's top cap.
+  // Flat dirt-brown rim + underside cone (no texture). The top is a SEPARATE
+  // flat disc sitting just above the slab's cap — grass green outdoors (hub),
+  // tunnel-gray inside the section buildings (`floor`).
   const DIRT = '#6b4e34'
 
   return (
@@ -204,10 +210,10 @@ function Island({ position, radius }) {
           args={[ISLAND_THICKNESS / 2, radius]}
           position={[0, ISLAND_TOP_Y - ISLAND_THICKNESS / 2, 0]}
         />
-        {/* Grass ground — solid light green */}
+        {/* Ground disc — grass green outdoors, gray stone inside buildings */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, ISLAND_TOP_Y + 0.02, 0]} receiveShadow>
           <circleGeometry args={[radius, 64]} />
-          <meshStandardMaterial color="#8fc25e" roughness={1} />
+          <meshStandardMaterial color={floor} roughness={1} />
         </mesh>
         {/* Dirt underside, apex pointing down */}
         <mesh
@@ -222,7 +228,7 @@ function Island({ position, radius }) {
   )
 }
 
-function Bridge({ axis, cx, cz, length, to }) {
+function Bridge({ axis, cx, cz, length }) {
   // Just the walkable deck now — the side walls + ceiling are the covered
   // tunnel (Architecture's BridgeTunnel). Lift slightly above the island
   // surface so the overlapping ends don't z-fight with the coplanar tops.
@@ -230,12 +236,14 @@ function Bridge({ axis, cx, cz, length, to }) {
   const deckY = ISLAND_TOP_Y + lift - 0.2
   const width = BRIDGE_HALF_WIDTH * 2
   const deckArgs = axis === 'x' ? [length, 0.4, width] : [width, 0.4, length]
-  const glass = to === 'video' // experiment: see-through glass deck to Videography
   return (
     <RigidBody type="fixed" colliders={false}>
+      {/* See-through glass deck on every tunnel (walls are glass too). Heavier
+          than a solid deck — if low-end/mobile lags, swap back to a plain
+          meshStandardMaterial here. */}
       <mesh receiveShadow position={[cx, deckY, cz]}>
         <boxGeometry args={deckArgs} />
-        {glass ? <GlassMaterial opacity={0.3} /> : <meshStandardMaterial color="#9a9690" />}
+        <GlassMaterial opacity={0.3} />
       </mesh>
       <CuboidCollider args={[deckArgs[0] / 2, 0.2, deckArgs[2] / 2]} position={[cx, deckY, cz]} />
     </RigidBody>
@@ -479,6 +487,59 @@ function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
   return null
 }
 
+/* World audio driver (no visuals). Each frame it reads the character body to:
+ *  - fire a footstep every STEP_DISTANCE units while the run clip is playing
+ *    (so steps lock to real movement and stop in the air), picking the sample
+ *    by surfaceAt(); and
+ *  - crossfade the ambient beds via a smoothed indoor/outdoor mix.
+ * (The open-kiosk chime lives in ExplorePage so it works during asset load.) */
+const STEP_DISTANCE = 1.9 // world units between footfalls
+const RUN_CLIP = animationSet.run
+
+function SoundController({ bodyRef }) {
+  const curAnimation = useGame((s) => s.curAnimation)
+  const prev = useRef(null)
+  const acc = useRef(0)
+  const duck = useRef(0) // outdoor-bed ducking (rises in tunnels, more indoors)
+  const inside = useRef(0) // interior room-tone level (only inside buildings)
+
+  useFrame((_, delta) => {
+    const body = bodyRef.current?.group
+    if (!body) return
+    const p = body.translation()
+
+    // Ambient: outdoor bed fades out across the tunnel (0 at the hub mouth → 1
+    // silent at the building end) and stays fully muted indoors; the interior
+    // tone only rises once actually inside. Eased so it blends, not snaps.
+    const indoors = isIndoor(p.x, p.z)
+    const tp = tunnelProgress(p.x, p.z)
+    const duckTarget = indoors ? 1 : tp == null ? 0 : tp
+    const insideTarget = indoors ? 1 : 0
+    const k = Math.min(1, delta * 3)
+    duck.current += (duckTarget - duck.current) * k
+    inside.current += (insideTarget - inside.current) * k
+    audio.setAmbient(duck.current, inside.current)
+
+    // Footsteps: accumulate distance only while the locomotion (run) clip plays.
+    if (prev.current) {
+      const moved = Math.hypot(p.x - prev.current.x, p.z - prev.current.z)
+      if (curAnimation === RUN_CLIP) {
+        acc.current += moved
+        if (acc.current >= STEP_DISTANCE) {
+          acc.current = 0
+          audio.playFootstep(surfaceAt(p.x, p.z))
+        }
+      } else {
+        // Prime the accumulator so the first step lands promptly on start.
+        acc.current = STEP_DISTANCE * 0.6
+      }
+    }
+    prev.current = { x: p.x, z: p.z }
+  })
+
+  return null
+}
+
 /* Drag-to-look layer on top of FixedCamera. Listens for pointer drags on the
  * 3D canvas (the joystick/jump/UI are separate DOM elements above it, so they
  * don't trigger look) and calls ecctrl's rotateCamera. While dragging it
@@ -675,7 +736,12 @@ export default function Scene() {
               zone-based boundary guard keeps you on the walkable area and
               respawns you at the hub if you ever fall. */}
           {ISLANDS.map((i) => (
-            <Island key={i.id} position={i.position} radius={i.radius} color={i.color} />
+            <Island
+              key={i.id}
+              position={i.position}
+              radius={i.radius}
+              floor={SECTION_IDS.includes(i.id) ? '#9a9690' : '#8fc25e'}
+            />
           ))}
 
           {/* Enclosed themed museums (walls + domed roofs + interior light) and
@@ -707,6 +773,9 @@ export default function Scene() {
           {/* Interactive kiosks + proximity detection */}
           <Kiosks />
           <ProximityDetector bodyRef={characterRef} />
+
+          {/* Footsteps, ambient crossfade, and the open-kiosk chime. */}
+          <SoundController bodyRef={characterRef} />
         </KeyboardControls>
       </Physics>
     </>

@@ -41,6 +41,50 @@ export const NPC_ROTATION_Y = Math.atan2(SPAWN[0] - NPC_POSITION[0], SPAWN[2] - 
 
 export const islandById = (id) => ISLANDS.find((i) => i.id === id)
 
+// "Indoors" = standing within a section building's footprint (its island). The
+// hub and the bridges are open-air. Used to crossfade the ambient sound beds.
+export function isIndoor(x, z) {
+  return SECTION_IDS.some((id) => {
+    const isl = islandById(id)
+    return Math.hypot(x - isl.position[0], z - isl.position[2]) <= isl.radius
+  })
+}
+
+// On a covered bridge/tunnel deck? (Used to duck the outdoor ambience early —
+// the tunnel is the moment the world starts to feel enclosed.)
+export function onBridge(x, z) {
+  return BRIDGES.some(
+    (b) => x >= b.zone.minX && x <= b.zone.maxX && z >= b.zone.minZ && z <= b.zone.maxZ
+  )
+}
+
+// Progress along whichever tunnel you're in: 0 at the hub mouth → 1 at the
+// building mouth, or null if not in a tunnel. Lets the outdoor ambience fade
+// out smoothly across the tunnel so it's fully silent by the building end.
+export function tunnelProgress(x, z) {
+  for (const b of BRIDGES) {
+    const zn = b.zone
+    if (x >= zn.minX && x <= zn.maxX && z >= zn.minZ && z <= zn.maxZ) {
+      const hub = islandById(b.from).position
+      const sec = islandById(b.to).position
+      if (b.axis === 'x') {
+        const s = Math.sign(sec[0] - hub[0])
+        return clamp(((x - b.hubEnd[0]) * s) / b.length, 0, 1)
+      }
+      const s = Math.sign(sec[2] - hub[2])
+      return clamp(((z - b.hubEnd[2]) * s) / b.length, 0, 1)
+    }
+  }
+  return null
+}
+
+// Footstep surface from position: 'grass' on the open hub, 'hard' on the bridge
+// decks and inside the (stone/marble) buildings. A logical map of the floor,
+// independent of its visual material.
+export function surfaceAt(x, z) {
+  return onBridge(x, z) || isIndoor(x, z) ? 'hard' : 'grass'
+}
+
 // World-space angle (atan2(dz,dx)) from an island's center toward the hub —
 // where its doorway, archway, and bridge all meet.
 export const entranceAngle = (island) => {
