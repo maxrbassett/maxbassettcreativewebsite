@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useExplore } from './useExplore'
 import { INTERACTABLES } from './interactables'
+import { makePosterDataURL } from './screenPoster'
 
 function AboutPanel({ about, onClose }) {
   return (
@@ -97,7 +98,45 @@ function InternalToolPanel({ tool, onClose }) {
   )
 }
 
-function ProjectPanel({ project, onClose }) {
+function ManagementPanel({ item, onClose }) {
+  return (
+    <div className="explore-panel-backdrop" onClick={onClose}>
+      <div className="explore-panel" onClick={(e) => e.stopPropagation()}>
+        <button className="explore-panel__close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+        <div className="explore-panel__body">
+          <p className="explore-panel__eyebrow">Leadership</p>
+          <h2 className="explore-panel__title">{item.title}</h2>
+          {item.role && <p className="explore-panel__role">{item.role}</p>}
+          {item.summary && <p className="explore-panel__desc">{item.summary}</p>}
+          {item.highlights?.length > 0 && (
+            <ul className="explore-panel__impact">
+              {item.highlights.map((x, i) => <li key={i}>{x}</li>)}
+            </ul>
+          )}
+          {item.stack?.length > 0 && (
+            <div className="explore-panel__stack">
+              {item.stack.map((s) => (
+                <span key={s} className="explore-panel__chip">{s}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectPanel({ project, posterKey, onClose }) {
+  // The same generated poster the in-world TV shows (keyed to match it exactly).
+  // Used when a project has no screenshot, and as a fallback if its image 404s.
+  const poster = useMemo(
+    () => makePosterDataURL({ key: posterKey, title: project.title, eyebrow: 'Project' }),
+    [posterKey, project.title]
+  )
+  const [imgSrc, setImgSrc] = useState(project.image || poster)
+  useEffect(() => setImgSrc(project.image || poster), [project, poster])
   return (
     <div className="explore-panel-backdrop" onClick={onClose}>
       <div className="explore-panel" onClick={(e) => e.stopPropagation()}>
@@ -105,7 +144,11 @@ function ProjectPanel({ project, onClose }) {
           ✕
         </button>
         <div className="explore-panel__img">
-          <img src={project.image} alt={project.title} />
+          <img
+            src={imgSrc}
+            alt={project.title}
+            onError={() => imgSrc !== poster && setImgSrc(poster)}
+          />
         </div>
         <div className="explore-panel__body">
           <h2 className="explore-panel__title">{project.title}</h2>
@@ -125,7 +168,7 @@ function ProjectPanel({ project, onClose }) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Visit site →
+              {/github\.com/.test(project.url) ? 'View on GitHub →' : 'Visit site →'}
             </a>
           )}
         </div>
@@ -191,8 +234,10 @@ export default function InteractionOverlay({ isTouch }) {
           <AboutPanel about={active.about} onClose={close} />
         ) : active.type === 'internal' ? (
           <InternalToolPanel tool={active.internal} onClose={close} />
+        ) : active.type === 'management' ? (
+          <ManagementPanel item={active.management} onClose={close} />
         ) : (
-          <ProjectPanel project={active.project} onClose={close} />
+          <ProjectPanel project={active.project} posterKey={active.id} onClose={close} />
         ))}
     </>
   )

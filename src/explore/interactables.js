@@ -6,6 +6,7 @@ import {
   aiVideos,
 } from '../data/videos'
 import { internalTools } from '../data/internalTools'
+import { management } from '../data/management'
 import { personalProjects } from '../data/personalProjects'
 import maxProfile from '../assets/maxProfile2.jpg'
 import { wallSlots, coveSlots, BUILDING_ROOMS, NPC_POSITION, NPC_ROTATION_Y } from './worldLayout'
@@ -62,6 +63,19 @@ const internalKiosks = internalTools.slice(0, internalSlots.length).map((tool, i
   position: internalSlots[i].position,
   rotationY: internalSlots[i].rotationY,
   internal: tool,
+}))
+
+// --- Software Dev museum, "Management" room: leadership work (team lead,
+// delivery, standards, mentorship) shown as lighter highlight panels. Back wall,
+// right of the rear partition (next to Internal Tools). ---
+const managementSlots = coveSlots('dev', 'management')
+const managementKiosks = management.slice(0, managementSlots.length).map((item, i) => ({
+  id: item.id,
+  type: 'management',
+  radius: PROXIMITY,
+  position: managementSlots[i].position,
+  rotationY: managementSlots[i].rotationY,
+  management: item,
 }))
 
 // --- Videography museum: one room (cove) per category, each curated to its
@@ -154,7 +168,7 @@ export const NPC = {
   },
 }
 
-export const INTERACTABLES = [...devKiosks, ...personalKiosks, ...internalKiosks, ...videoKiosks, aboutKiosk, NPC]
+export const INTERACTABLES = [...devKiosks, ...personalKiosks, ...internalKiosks, ...managementKiosks, ...videoKiosks, aboutKiosk, NPC]
 
 /* Type-agnostic accessors so the in-world screen (texture + proximity label)
  * doesn't need to branch on type. */
@@ -164,6 +178,7 @@ export const interactableTitle = (it) => {
     case 'about': return 'About Max'
     case 'npc': return it.npc.name
     case 'internal': return it.internal.title
+    case 'management': return it.management.title
     default: return it.project.title
   }
 }
@@ -176,6 +191,7 @@ export const interactableImage = (it) => {
     case 'about': return it.about.photo
     case 'npc': return null
     case 'internal': return it.internal.image || null
+    case 'management': return it.management.image || null
     default: return it.project.image
   }
 }

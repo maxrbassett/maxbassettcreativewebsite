@@ -149,12 +149,14 @@ export function wallSlots(islandId, count) {
 // the entrance, split onto two flanks by the doorway). A room may instead pin
 // an explicit outer-wall arc via `arcDeg: [startDeg, endDeg]` (world angles) —
 // used by Software Dev so Public Web and Personal Projects each occupy a whole
-// wall flanking the entrance, with Internal Tools across the back.
+// wall flanking the entrance, with Internal Tools and Management splitting the
+// back wall (left/right of the rear partition).
 export const BUILDING_ROOMS = {
   dev: [
     { key: 'web', label: 'Public Web', screenCount: 5, arcDeg: [96, 180] }, // left of entrance (labeled wall)
     { key: 'personal', label: 'Personal Projects', screenCount: 3, arcDeg: [0, 84] }, // right of entrance
-    { key: 'internal', label: 'Internal Tools', screenCount: 3, arcDeg: [200, 340] }, // back wall
+    { key: 'internal', label: 'Internal Tools', screenCount: 4, arcDeg: [185, 265] }, // back wall, left of rear partition
+    { key: 'management', label: 'Management', screenCount: 4, arcDeg: [275, 355] }, // back wall, right of rear partition
   ],
   video: [
     { key: 'trailers', label: 'Trailers & Promos', screenCount: 4 }, // entrance room (2 per flank)
@@ -165,10 +167,12 @@ export const BUILDING_ROOMS = {
 }
 
 // Explicit partition-wall angles (world radians) for buildings whose rooms
-// aren't auto equal-wedges. Dev = a single diameter wall (top rooms vs. the
-// back Internal room); the web/personal split is just the open main entrance.
+// aren't auto equal-wedges. Dev = a diameter wall (0/π) separating the two
+// front rooms from the back, plus a rear wall at 3π/2 (270°, straight back from
+// the entrance) splitting the back into Internal Tools and Management. The
+// web/personal split at the front is just the open main entrance (no wall).
 export const BUILDING_PARTITIONS = {
-  dev: [0, Math.PI],
+  dev: [0, Math.PI, 1.5 * Math.PI],
 }
 
 export const COVE_DOOR_WIDTH = 3.4 // doorway-gap span along a partition wall
