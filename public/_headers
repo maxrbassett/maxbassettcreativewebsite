@@ -1,0 +1,18 @@
+# Netlify cache rules — keep the heavy /explore assets out of repeat downloads.
+# Vite's hashed bundles are content-addressed, so they're safe to cache forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Static 3D assets (textures, HDRI, transcoder, fonts, models). Filenames aren't
+# hashed, so use a long-but-revalidatable cache (30 days). Bump the filename
+# (e.g. _v2) if you replace one and want clients to refetch immediately.
+/textures/*
+  Cache-Control: public, max-age=2592000
+/hdri/*
+  Cache-Control: public, max-age=2592000
+/basis/*
+  Cache-Control: public, max-age=2592000
+/fonts/*
+  Cache-Control: public, max-age=2592000
+/models/*
+  Cache-Control: public, max-age=2592000

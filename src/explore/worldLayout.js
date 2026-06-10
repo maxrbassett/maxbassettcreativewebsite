@@ -16,9 +16,11 @@ const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi)
 // sit close to the hub so their bridges (now covered tunnels) stay short.
 export const ISLANDS = [
   { id: 'hub', position: [0, 0, 75], radius: 16, color: '#b3d99b', label: 'Hub' },
-  { id: 'dev', position: [0, 0, 0], radius: 33, color: '#a7d8a0', label: 'Software Dev' },
-  { id: 'video', position: [54, 0, 75], radius: 26, color: '#9ec9e8', label: 'Videography' },
-  { id: 'about', position: [-40, 0, 75], radius: 14, color: '#e6c98a', label: 'About' },
+  // dev & video are now split into walled rooms, so they're sized so each room
+  // reads full rather than as a sparse ring. about is a single small stop.
+  { id: 'dev', position: [0, 0, 0], radius: 24, color: '#a7d8a0', label: 'Software Dev' },
+  { id: 'video', position: [54, 0, 75], radius: 28, color: '#9ec9e8', label: 'Videography' },
+  { id: 'about', position: [-40, 0, 75], radius: 8.5, color: '#e6c98a', label: 'About' },
 ]
 export const BRIDGE_LINKS = [
   ['hub', 'dev'],
@@ -129,4 +131,158 @@ export function wallSlots(islandId, count) {
     slots.push({ position: [x, 0, z], rotationY: Math.atan2(cx - x, cz - z) }) // face center
   }
   return slots
+}
+
+/* ------------------------------------------------------------------
+ * Interior "coves" — each section building is carved into walled-off rooms,
+ * one per content category, by flat RADIAL partition walls running from an
+ * inner radius out to the outer wall. Walls stop short of center (leaving a
+ * small open atrium) and each has a doorway gap, so the player circulates
+ * room→room. The main entrance (toward the hub) is centered in room 0.
+ *
+ * All geometry derives from the island's radius + entranceAngle + this config,
+ * so resizing a building auto-propagates to walls, screen slots, and headers.
+ * ------------------------------------------------------------------ */
+
+// Ordered rooms per building. A room is one wall section with its own label +
+// screens. By default rooms are equal wedges in circulation order (room 0 holds
+// the entrance, split onto two flanks by the doorway). A room may instead pin
+// an explicit outer-wall arc via `arcDeg: [startDeg, endDeg]` (world angles) —
+// used by Software Dev so Public Web and Personal Projects each occupy a whole
+// wall flanking the entrance, with Internal Tools across the back.
+export const BUILDING_ROOMS = {
+  dev: [
+    { key: 'web', label: 'Public Web', screenCount: 5, arcDeg: [96, 180] }, // left of entrance (labeled wall)
+    { key: 'personal', label: 'Personal Projects', screenCount: 3, arcDeg: [0, 84] }, // right of entrance
+    { key: 'internal', label: 'Internal Tools', screenCount: 3, arcDeg: [200, 340] }, // back wall
+  ],
+  video: [
+    { key: 'trailers', label: 'Trailers & Promos', screenCount: 4 }, // entrance room (2 per flank)
+    { key: 'social', label: 'Social & Short Form', screenCount: 5 },
+    { key: 'narrative', label: 'Narrative & Documentary', screenCount: 5 },
+    { key: 'ai', label: 'AI', screenCount: 5 },
+  ],
+}
+
+// Explicit partition-wall angles (world radians) for buildings whose rooms
+// aren't auto equal-wedges. Dev = a single diameter wall (top rooms vs. the
+// back Internal room); the web/personal split is just the open main entrance.
+export const BUILDING_PARTITIONS = {
+  dev: [0, Math.PI],
+}
+
+export const COVE_DOOR_WIDTH = 3.4 // doorway-gap span along a partition wall
+export const COVE_DOOR_INNER_OFFSET = 2 // gap starts this far past the inner radius
+export const PARTITION_THICKNESS = 0.8 // visual wall thickness (box depth)
+export const ROOM_HEADER_Y = SCREEN_CENTER_Y + 4.0 // engraved header height (clear of the float orbs above the TVs)
+const COVE_PAD = 0.06 // keep screens/labels off the partition seams (radians)
+const DEG = Math.PI / 180
+// Inner radius where radial walls stop, leaving an open central atrium so the
+// walls never converge to a cramped point. ~17% of the building radius.
+export const coveInnerRadius = (r) => Math.max(3.5, r * 0.17)
+
+const roomStep = (islandId) => (Math.PI * 2) / BUILDING_ROOMS[islandId].length
+
+// Resolve a room to its outer-wall arc: a center angle (for label/light) and
+// the interval(s) screens spread across. Explicit `arcDeg` → one interval; else
+// an equal wedge (the entrance room splits into two flanks around the doorway).
+function roomArc(islandId, idx) {
+  const isl = islandById(islandId)
+  const room = BUILDING_ROOMS[islandId][idx]
+  if (room.arcDeg) {
+    const s = room.arcDeg[0] * DEG
+    const e = room.arcDeg[1] * DEG
+    return { center: (s + e) / 2, intervals: [[s + COVE_PAD, e - COVE_PAD]] }
+  }
+  const step = roomStep(islandId)
+  const center = entranceAngle(isl) + idx * step
+  if (idx === 0) {
+    const door = doorHalfAngle(isl.radius)
+    return {
+      center, // header sits centered over the entrance doorway, between the two flanks
+      intervals: [
+        [center - step / 2 + COVE_PAD, center - door - COVE_PAD],
+        [center + door + COVE_PAD, center + step / 2 - COVE_PAD],
+      ],
+    }
+  }
+  return { center, intervals: [[center - step / 2 + COVE_PAD, center + step / 2 - COVE_PAD]] }
+}
+
+// A room's center angle (world radians) — for placing its light.
+export const roomCenter = (islandId, idx) => roomArc(islandId, idx).center
+
+// Radial partition walls for a building, each split into two collision/render
+// segments around a mid-wall doorway gap. Returns
+// { angle, gap:{inner,outer}, segments:[{ax,az,bx,bz}, …] } in world space.
+export function partitionWalls(islandId) {
+  const isl = islandById(islandId)
+  const [cx, , cz] = isl.position
+  const R = isl.radius
+  const ent = entranceAngle(isl)
+  const step = roomStep(islandId)
+  const angles =
+    BUILDING_PARTITIONS[islandId] ||
+    Array.from({ length: BUILDING_ROOMS[islandId].length }, (_, j) => ent + (j + 0.5) * step)
+  const ri = coveInnerRadius(R)
+  const outer = R - 0.3 // tuck the wall end just behind the curved outer wall
+  const gapInner = ri + COVE_DOOR_INNER_OFFSET
+  const gapOuter = gapInner + COVE_DOOR_WIDTH
+  const pt = (a, r) => [cx + Math.cos(a) * r, cz + Math.sin(a) * r]
+  const seg = (a, r0, r1) => {
+    const [ax, az] = pt(a, r0)
+    const [bx, bz] = pt(a, r1)
+    return { ax, az, bx, bz }
+  }
+  return angles.map((a) => ({
+    angle: a,
+    gap: { inner: gapInner, outer: gapOuter },
+    segments: [seg(a, ri, gapInner), seg(a, gapOuter, outer)],
+  }))
+}
+
+// Distribute a room's screens across its outer-wall arc, each facing center.
+// Mirrors wallSlots' spacing/facing math.
+export function coveSlots(islandId, roomKey) {
+  const isl = islandById(islandId)
+  const [cx, , cz] = isl.position
+  const R = isl.radius - SCREEN_MOUNT_INSET
+  const rooms = BUILDING_ROOMS[islandId]
+  const idx = rooms.findIndex((r) => r.key === roomKey)
+  const K = rooms[idx].screenCount
+  const { intervals } = roomArc(islandId, idx)
+
+  const lengths = intervals.map(([s, e]) => Math.max(0, e - s))
+  const total = lengths.reduce((a, b) => a + b, 0) || 1
+  const slots = []
+  let placed = 0
+  intervals.forEach(([s, e], ii) => {
+    // proportional split by arc length; last interval takes the remainder
+    const n = ii === intervals.length - 1 ? K - placed : Math.round((lengths[ii] / total) * K)
+    for (let i = 0; i < n; i++) {
+      const a = s + (e - s) * ((i + 1) / (n + 1))
+      const x = cx + Math.cos(a) * R
+      const z = cz + Math.sin(a) * R
+      slots.push({ position: [x, 0, z], rotationY: Math.atan2(cx - x, cz - z) })
+    }
+    placed += n
+  })
+  return slots
+}
+
+// Anchor for a room's engraved header sign: on the outer wall above the screen
+// band, facing inward.
+export function roomHeaderAnchor(islandId, roomKey) {
+  const isl = islandById(islandId)
+  const [cx, , cz] = isl.position
+  // Headers are wide FLAT text planes on a CURVED wall: their ends bow outward
+  // from the chord, so they must sit far enough toward the room center that even
+  // those ends clear the (inset, thick) inner wall surface. -1.2 keeps a wide
+  // label (maxWidth 14 → ~7 half-width) in front of the inner shell.
+  const R = isl.radius - SCREEN_MOUNT_INSET - 1.2
+  const idx = BUILDING_ROOMS[islandId].findIndex((r) => r.key === roomKey)
+  const center = roomCenter(islandId, idx)
+  const x = cx + Math.cos(center) * R
+  const z = cz + Math.sin(center) * R
+  return { position: [x, ROOM_HEADER_Y, z], rotationY: Math.atan2(cx - x, cz - z) }
 }

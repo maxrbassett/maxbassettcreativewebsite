@@ -82,7 +82,11 @@ export default function ExplorePage() {
       {/* Proximity prompt / interact button / content panel */}
       <InteractionOverlay isTouch={isTouch} />
 
-      <Canvas shadows camera={{ position: [0, 4, 8], fov: 50 }}>
+      <Canvas
+        shadows="soft"
+        dpr={[1, 2]}
+        camera={{ position: [0, 4, 8], fov: 50, near: 0.3, far: 400 }}
+      >
         <Suspense fallback={null}>
           <Scene />
         </Suspense>

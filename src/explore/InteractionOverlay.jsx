@@ -53,6 +53,50 @@ function VideoPlayerPanel({ video, onClose }) {
   )
 }
 
+function InternalToolPanel({ tool, onClose }) {
+  return (
+    <div className="explore-panel-backdrop" onClick={onClose}>
+      <div className="explore-panel" onClick={(e) => e.stopPropagation()}>
+        <button className="explore-panel__close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+        <div className="explore-panel__body">
+          <p className="explore-panel__eyebrow">Internal Tool</p>
+          <h2 className="explore-panel__title">{tool.title}</h2>
+          {tool.role && <p className="explore-panel__role">{tool.role}</p>}
+          {tool.stack?.length > 0 && (
+            <div className="explore-panel__stack">
+              {tool.stack.map((s) => (
+                <span key={s} className="explore-panel__chip">{s}</span>
+              ))}
+            </div>
+          )}
+          {tool.problem && (
+            <>
+              <h3 className="explore-panel__subhead">Problem</h3>
+              <p className="explore-panel__desc">{tool.problem}</p>
+            </>
+          )}
+          {tool.approach && (
+            <>
+              <h3 className="explore-panel__subhead">Approach</h3>
+              <p className="explore-panel__desc">{tool.approach}</p>
+            </>
+          )}
+          {tool.impact?.length > 0 && (
+            <>
+              <h3 className="explore-panel__subhead">Impact</h3>
+              <ul className="explore-panel__impact">
+                {tool.impact.map((x, i) => <li key={i}>{x}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProjectPanel({ project, onClose }) {
   return (
     <div className="explore-panel-backdrop" onClick={onClose}>
@@ -145,6 +189,8 @@ export default function InteractionOverlay({ isTouch }) {
           <VideoPlayerPanel video={active.video} onClose={close} />
         ) : active.type === 'about' ? (
           <AboutPanel about={active.about} onClose={close} />
+        ) : active.type === 'internal' ? (
+          <InternalToolPanel tool={active.internal} onClose={close} />
         ) : (
           <ProjectPanel project={active.project} onClose={close} />
         ))}

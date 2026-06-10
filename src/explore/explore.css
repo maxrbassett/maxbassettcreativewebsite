@@ -447,6 +447,24 @@
   font-size: 0.95rem;
   line-height: 1.7;
 }
+/* Internal-tool panel: small eyebrow label above the title + the Impact list. */
+.explore-panel__eyebrow {
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #6b6b6b);
+}
+.explore-panel__impact {
+  margin: 0 0 22px;
+  padding-left: 1.1em;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.explore-panel__impact li {
+  margin-bottom: 4px;
+}
 .explore-panel__link {
   display: inline-block;
   padding: 12px 24px;

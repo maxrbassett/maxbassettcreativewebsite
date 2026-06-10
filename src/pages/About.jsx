@@ -32,10 +32,9 @@ export default function About() {
             hospitals, clinics, and surgery centers with the tools they need to provide better care. 
           </p>
           <p className="about__text">
-            On the side, I'm a filmmaker and video editor, creating
+            A side hobby of mine includes filmmaking and video editing, creating
             trailers, social content, documentary pieces, and AI-driven
-            cinema. Reach out if you're interested in seeing some of my work! 
-            You can see that work in the{' '}
+            cinema. You can see that work in the{' '}
              <a href="/videography" style={{ color: 'var(--color-accent)' }}>
                videography section
              </a>. 
