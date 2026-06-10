@@ -3,35 +3,12 @@ import { NavLink, Link, useLocation } from 'react-router-dom'
 import { useTheme } from '../hooks/useTheme'
 import './Navbar.css'
 
-const videoNavLinks = [
-  { to: '/trailers-promos', label: 'Trailers & Promos' },
-  { to: '/social-short-form', label: 'Social & Short Form' },
-  { to: '/narrative-documentary', label: 'Narrative & Documentary' },
-  { to: '/ai', label: 'AI' },
+const navLinks = [
+  { to: '/', label: 'Software Development' },
+  { to: '/videography', label: 'Videography' },
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
 ]
-
-const devNavLinks = [
-  { to: '/software-dev', label: 'Work' },
-  { to: '/about', label: 'About' },
-  { to: '/contact', label: 'Contact' },
-]
-
-// Routes that belong to the videography "section" of the site.
-const videoRoutes = [
-  '/videography',
-  '/trailers-promos',
-  '/social-short-form',
-  '/narrative-documentary',
-  '/ai',
-]
-
-function isVideoSection(pathname) {
-  return videoRoutes.some(
-    (r) => pathname === r || pathname.startsWith(r + '/')
-  )
-}
 
 function SunIcon() {
   return (
@@ -83,15 +60,11 @@ export default function Navbar() {
 
   const handleNavClick = () => setMenuOpen(false)
 
-  const inVideoSection = isVideoSection(location.pathname)
-  const navLinks = inVideoSection ? videoNavLinks : devNavLinks
-  const logoHome = inVideoSection ? '/videography' : '/'
-
   return (
     <header className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
       <div className="navbar__inner">
         {/* Logo */}
-        <Link to={logoHome} className="navbar__logo" onClick={handleNavClick}>
+        <Link to="/" className="navbar__logo" onClick={handleNavClick}>
           <img
             src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'}
             alt="Max Bassett Creative"
@@ -106,7 +79,7 @@ export default function Navbar() {
               <NavLink
                 key={link.to}
                 to={link.to}
-                end={link.to === '/software-dev'}
+                end={link.to === '/'}
                 className={({ isActive }) =>
                   `navbar__link ${isActive ? 'navbar__link--active' : ''}`
                 }
@@ -141,7 +114,7 @@ export default function Navbar() {
           <NavLink
             key={link.to}
             to={link.to}
-            end={link.to === '/software-dev'}
+            end={link.to === '/'}
             className={({ isActive }) =>
               `navbar__mobile-link ${isActive ? 'navbar__mobile-link--active' : ''}`
             }
