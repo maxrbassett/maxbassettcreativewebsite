@@ -19,6 +19,8 @@ import {
   ISLANDS,
   SPAWN,
   SECTION_IDS,
+  SECRET_ISLAND,
+  SECRET_GAME_ISLANDS,
   islandById,
   BRIDGES,
   ZONES,
@@ -382,11 +384,74 @@ function zoneClamp(z, x, zz) {
   return { x: cx, z: cz, dist: Math.hypot(x - cx, zz - cz) }
 }
 
-function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
+// Height at which the boundary hands off from the surface world to the secret
+// land — a margin above the island surface (clears jumps down there) but well
+// below where the player ever is up top. Tracks the island if it's moved.
+const SECRET_HANDOVER_Y = SECRET_ISLAND.position[1] + 8
+
+// Launch-pad teleport tuning.
+const FADE_DUR = 0.3 // seconds for the fade out / in
+const MAIN_CENTER = [0, 75] // aim arrivals back toward the main world (the hub)
+
+// On arrival, face the character — and so the follow-camera behind it — toward
+// the main world, so you look out toward home with the return portal behind you.
+// (ecctrl only gives relative rotate; derive the delta from the camera's yaw.)
+const _camDir = new THREE.Vector3()
+function orientTowardMain(ecctrl, camera, arrival) {
+  if (!ecctrl?.rotateCamera) return
+  const dx = MAIN_CENTER[0] - arrival[0]
+  const dz = MAIN_CENTER[1] - arrival[2]
+  if (Math.hypot(dx, dz) < 5) return // arrived ~at the hub; nothing to aim at
+  const desired = Math.atan2(dx, dz)
+  camera.getWorldDirection(_camDir)
+  const current = Math.atan2(_camDir.x, _camDir.z)
+  let d = desired - current
+  d = Math.atan2(Math.sin(d), Math.cos(d)) // shortest turn
+  ecctrl.rotateCharacterOnY(d)
+  ecctrl.rotateCamera(0, d)
+}
+
+function BoundaryGuard({ bodyRef, teleportRef, spawn = SPAWN }) {
   const locked = useRef(false)
-  useFrame(() => {
+  const camera = useThree((s) => s.camera)
+  useFrame((_, delta) => {
     const body = bodyRef.current?.group
     if (!body) return
+
+    // --- Launch-pad teleport in progress: fade out → (while opaque) teleport +
+    // orient → wait for the camera to settle on the destination → fade in. All
+    // boundary rules are skipped meanwhile. ---
+    const tp = teleportRef?.current
+    if (tp) {
+      const setFade = useExplore.getState().setFade
+      tp.t += delta
+      if (tp.phase === 'out') {
+        setFade(Math.min(1, tp.t / FADE_DUR))
+        if (tp.t >= FADE_DUR) {
+          body.setTranslation({ x: tp.target[0], y: tp.target[1], z: tp.target[2] }, true)
+          body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+          orientTowardMain(bodyRef.current, camera, tp.target)
+          tp.phase = 'wait'
+          tp.t = 0
+        }
+      } else if (tp.phase === 'wait') {
+        // Hold black until the follow-cam has flown to the destination (so the
+        // reveal isn't a swoop), with a cap so it never hangs.
+        const p = body.translation()
+        const camDist = Math.hypot(camera.position.x - p.x, camera.position.y - p.y, camera.position.z - p.z)
+        if (camDist < 16 || tp.t > 0.7) {
+          tp.phase = 'in'
+          tp.t = 0
+        }
+      } else {
+        setFade(Math.max(0, 1 - tp.t / FADE_DUR))
+        if (tp.t >= FADE_DUR) {
+          setFade(0)
+          teleportRef.current = null
+        }
+      }
+      return
+    }
 
     // Lock the capsule's X/Z rotation once (keep yaw free for turning). The
     // character physically can't tip over, so the "goes sideways" glitch can't
@@ -397,11 +462,56 @@ function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
     }
 
     const pos = body.translation()
-
-    // Fall failsafe → respawn at the hub
-    if (pos.y < minY) {
+    const resetToSpawn = () => {
       body.setTranslation({ x: spawn[0], y: spawn[1], z: spawn[2] }, true)
       body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    }
+
+    const [sx, sy, sz] = SECRET_ISLAND.position
+    const dHub = Math.hypot(pos.x - sx, pos.z - sz)
+    // Falling off any secret-area island puts you back on the secret hub (you
+    // stay in the secret area), not all the way up to the main world.
+    const resetToSecret = () => {
+      body.setTranslation({ x: sx, y: sy + 2, z: sz }, true)
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    }
+
+    // --- Far-flung game islands (isolated, any height; reached only by pads) ---
+    // Checked first: if you're over one, only its own circular boundary applies
+    // (no phantom main-world rules out here). Its collider holds you up.
+    for (const g of SECRET_GAME_ISLANDS) {
+      const [gx, gy, gz] = g.position
+      const dg = Math.hypot(pos.x - gx, pos.z - gz)
+      if (dg < g.radius + 20) {
+        if (pos.y < gy - 22) {
+          resetToSecret()
+          return
+        }
+        const lim = g.radius - 1
+        if (dg > lim) {
+          const nd = dg || 1e-6
+          const nx = (pos.x - gx) / nd
+          const nz = (pos.z - gz) / nd
+          body.setTranslation({ x: gx + nx * lim, y: pos.y, z: gz + nz * lim }, true)
+          const v = body.linvel()
+          const outward = v.x * nx + v.z * nz
+          if (outward > 0) body.setLinvel({ x: v.x - outward * nx, y: v.y, z: v.z - outward * nz }, true)
+        }
+        return
+      }
+    }
+
+    // --- Secret hub (below the clouds, under the main hub) ---
+    if (pos.y < SECRET_HANDOVER_Y) {
+      if (dHub > SECRET_ISLAND.radius + 3) resetToSecret()
+      return
+    }
+
+    // --- Up top. Fall failsafe: respawn only for falls that AREN'T over the
+    // secret hub. A fall over it (the hidden entrance beside a bridge) drops you
+    // down onto the secret hub instead of respawning. ---
+    if (pos.y < -8 && dHub > SECRET_ISLAND.radius) {
+      resetToSpawn()
       return
     }
 
@@ -518,12 +628,27 @@ function SoundController({ bodyRef }) {
     if (!body) return
     const p = body.translation()
 
+    // Are we anywhere in the secret area — the hub OR one of the outer game
+    // islands? Keeps the secret music going (and birds off) across all of them.
+    const dHub = Math.hypot(
+      p.x - SECRET_ISLAND.position[0],
+      p.z - SECRET_ISLAND.position[2]
+    )
+    const onSecret =
+      (p.y < SECRET_HANDOVER_Y && dHub <= SECRET_ISLAND.radius + 3) ||
+      SECRET_GAME_ISLANDS.some(
+        (g) => Math.hypot(p.x - g.position[0], p.z - g.position[2]) <= g.radius + 5
+      )
+
+    // Music: secret playlist anywhere in the secret area, main playlist elsewhere.
+    audio.setSecret(onSecret)
+
     // Ambient: outdoor bed fades out across the tunnel (0 at the hub mouth → 1
-    // silent at the building end) and stays fully muted indoors; the interior
-    // tone only rises once actually inside. Eased so it blends, not snaps.
+    // silent at the building end), stays muted indoors, and fully fades out on
+    // the secret land (its own place + its own music). Eased so it blends.
     const indoors = isIndoor(p.x, p.z)
     const tp = tunnelProgress(p.x, p.z)
-    const duckTarget = indoors ? 1 : tp == null ? 0 : tp
+    const duckTarget = onSecret || indoors ? 1 : tp == null ? 0 : tp
     const insideTarget = indoors ? 1 : 0
     const k = Math.min(1, delta * 3)
     duck.current += (duckTarget - duck.current) * k
@@ -548,6 +673,102 @@ function SoundController({ bodyRef }) {
   })
 
   return null
+}
+
+/* A launch pad on the secret level. Step on it and it starts a scripted flight
+ * (driven in BoundaryGuard) that arcs the character through the air to `target`.
+ * Used for hub→game, hub→up to the main world, and game→hub. */
+const LAUNCH_PAD_RADIUS = 2.6
+
+const SECRET_Y = SECRET_ISLAND.position[1]
+const HUB = SECRET_ISLAND.position
+const HUB_PAD_R = 22 // out past where the fall-through lands you (~hub rim), so you never land on a pad
+const arrival = (isl) => [isl.position[0], isl.position[1] + 2, isl.position[2]] // land at an island's center
+
+// Land at the island's edge nearest the main world, so you arrive looking out
+// across the void straight toward home (instant sense of where you are).
+const arrivalEdge = (isl) => {
+  const dx = HUB[0] - isl.position[0]
+  const dz = HUB[2] - isl.position[2]
+  const len = Math.hypot(dx, dz) || 1
+  const r = isl.radius - 3
+  return [isl.position[0] + (dx / len) * r, isl.position[1] + 2, isl.position[2] + (dz / len) * r]
+}
+
+// Hub pads: one per game island (color-matched), plus one back up to the main
+// world. Six evenly spaced around the hub center (which stays clear for arrivals).
+const HUB_LAUNCHERS = [
+  ...SECRET_GAME_ISLANDS.map((isl, i) => {
+    const a = -Math.PI / 2 + (i / 6) * Math.PI * 2
+    return {
+      key: `to-${isl.id}`,
+      position: [HUB[0] + Math.cos(a) * HUB_PAD_R, SECRET_Y, HUB[2] + Math.sin(a) * HUB_PAD_R],
+      target: arrivalEdge(isl),
+      color: isl.color,
+    }
+  }),
+  (() => {
+    const a = -Math.PI / 2 + (5 / 6) * Math.PI * 2
+    return {
+      key: 'to-main',
+      position: [HUB[0] + Math.cos(a) * HUB_PAD_R, SECRET_Y, HUB[2] + Math.sin(a) * HUB_PAD_R],
+      target: SPAWN, // back up to the main world
+      color: '#ffd24d',
+    }
+  })(),
+]
+
+// A return pad on each game island (offset from its center so arrivals don't
+// re-trigger it), sending you back to the hub center.
+const RETURN_LAUNCHERS = SECRET_GAME_ISLANDS.map((isl) => {
+  // Put the return pad on the FAR side of the island (away from the main world),
+  // so when you arrive facing home, the portal sits behind you.
+  const dx = isl.position[0] - HUB[0]
+  const dz = isl.position[2] - HUB[2]
+  const len = Math.hypot(dx, dz) || 1
+  const off = 9
+  return {
+    key: `return-${isl.id}`,
+    position: [isl.position[0] + (dx / len) * off, isl.position[1], isl.position[2] + (dz / len) * off],
+    target: arrival(SECRET_ISLAND),
+    color: '#cfd6e0',
+  }
+})
+
+const LAUNCHERS = [...HUB_LAUNCHERS, ...RETURN_LAUNCHERS]
+
+function Launcher({ bodyRef, position, target, color, onLaunch }) {
+  const arrow = useRef(null)
+
+  useFrame((state) => {
+    if (arrow.current) {
+      arrow.current.position.y = 3.2 + Math.sin(state.clock.elapsedTime * 2.5) * 0.35
+    }
+    const body = bodyRef.current?.group
+    if (!body) return
+    const pos = body.translation()
+
+    // Trigger when standing on the pad (its level + within its radius).
+    // onLaunch ignores the call if a flight is already underway.
+    if (Math.abs(pos.y - position[1]) < 5) {
+      const d = Math.hypot(pos.x - position[0], pos.z - position[2])
+      if (d < LAUNCH_PAD_RADIUS) onLaunch(target)
+    }
+  })
+
+  // Emissive only (no dynamic light) — keeps a dozen pads cheap on mobile.
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.2, 0]} receiveShadow>
+        <cylinderGeometry args={[LAUNCH_PAD_RADIUS, LAUNCH_PAD_RADIUS, 0.4, 32]} />
+        <meshStandardMaterial color="#1c1c22" emissive={color} emissiveIntensity={1.3} toneMapped={false} />
+      </mesh>
+      <mesh ref={arrow} position={[0, 3.2, 0]}>
+        <coneGeometry args={[0.8, 1.7, 20]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.8} toneMapped={false} />
+      </mesh>
+    </group>
+  )
 }
 
 /* Drag-to-look layer on top of FixedCamera. Listens for pointer drags on the
@@ -612,6 +833,16 @@ const SUN_POS = [45, 26, 22]
 
 export default function Scene() {
   const characterRef = useRef(null)
+  // Active launch-pad teleport transition (driven in BoundaryGuard). Null = idle.
+  const teleportRef = useRef(null)
+
+  // Kick off a fade-teleport to `target`. Ignored if one is already running.
+  const startTeleport = (target) => {
+    if (teleportRef.current) return
+    teleportRef.current = { phase: 'out', t: 0, target }
+    audio.playWhoosh()
+  }
+
   // Lock controls only for full-screen panels — NOT the NPC dialogue. ecctrl's
   // disableControl `return`s before the hover/auto-balance physics, so locking
   // would drop the float force and the character sinks; the panels hide that
@@ -685,11 +916,13 @@ export default function Scene() {
           is the dependable floor (recolored to melt into the fog so its edge
           never reads as a hard line); a thin layer of volumetric puffs above
           it adds real depth at the horizon. Static for now — drift is Phase 6. */}
-      <mesh position={[0, -22, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, -10, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1000, 64]} />
         <meshBasicMaterial color="#dcebf9" />
       </mesh>
-      <Clouds material={THREE.MeshBasicMaterial} limit={300} range={160}>
+      {/* Self-hosted cloud sprite (texture prop) — drei's default loads from a
+          third-party CDN at runtime, which can fail (SSL) and crash the canvas. */}
+      <Clouds texture="/cloud.png" material={THREE.MeshBasicMaterial} limit={300} range={160}>
         <Cloud
           seed={1}
           bounds={[260, 4, 260]}
@@ -698,7 +931,7 @@ export default function Scene() {
           opacity={0.5}
           speed={0}
           color="#f4f9ff"
-          position={[0, -20, 30]}
+          position={[0, -10, 30]}
         />
       </Clouds>
 
@@ -757,6 +990,24 @@ export default function Scene() {
             />
           ))}
 
+          {/* Secret hub (reached by the fall-through) + 5 far-flung game islands
+              scattered in the distance at varied heights. Launch pads carry you
+              hub→game, game→hub, and hub→up to the main world. */}
+          <Island position={SECRET_ISLAND.position} radius={SECRET_ISLAND.radius} />
+          {SECRET_GAME_ISLANDS.map((isl) => (
+            <Island key={isl.id} position={isl.position} radius={isl.radius} floor={isl.color} />
+          ))}
+          {LAUNCHERS.map((l) => (
+            <Launcher
+              key={l.key}
+              bodyRef={characterRef}
+              position={l.position}
+              target={l.target}
+              color={l.color}
+              onLaunch={startTeleport}
+            />
+          ))}
+
           {/* Enclosed themed museums (walls + domed roofs + interior light) and
               covered bridge tunnels. */}
           <Museums islands={ISLANDS} bridges={BRIDGES} />
@@ -781,7 +1032,7 @@ export default function Scene() {
               wall={BUILDING_THEME[b.to]?.wall}
             />
           ))}
-          <BoundaryGuard bodyRef={characterRef} />
+          <BoundaryGuard bodyRef={characterRef} teleportRef={teleportRef} />
 
           {/* Interactive kiosks + proximity detection */}
           <Kiosks />

@@ -11,6 +11,9 @@ export const useExplore = create((set, get) => ({
   nearby: null,
   active: null,
   dialogueStep: 0,
+  // Full-screen fade overlay opacity (0–1), driven during launch-pad teleports.
+  fade: 0,
+  setFade: (fade) => set({ fade }),
   setNearby: (nearby) => set({ nearby }),
   open: (item) => set({ active: item, dialogueStep: 0 }),
   close: () => set({ active: null, dialogueStep: 0 }),

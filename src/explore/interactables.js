@@ -160,10 +160,12 @@ export const NPC = {
   npc: {
     name: 'Max',
     lines: [
-      'Welcome to my portfolio website! Glad you found your way here.',
+      'Welcome to my 3d portfolio world, built entirely with web tools.',
       "I'm Max — each building here is a different part of what I do.",
-      'Head through the archways to explore Software Dev, Videography, and a bit About me.',
-      'Inside, walk up to a screen and press E to take a closer look. Enjoy exploring!',
+      'Inside, walk up to a screen and press E, or click, to take a closer look.',
+      "Oh — and keep your eyes open.",
+      "I hear there's a secret land hidden somewhere below…",
+      "Enjoy exploring!",
     ],
   },
 }
