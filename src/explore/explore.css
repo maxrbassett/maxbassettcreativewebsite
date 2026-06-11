@@ -94,6 +94,32 @@
   background: var(--color-accent);
 }
 
+/* Shown if the WebGL context is lost (GPU out of memory) instead of a black screen. */
+.explore-context-lost {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(10, 10, 10, 0.88);
+  color: #fff;
+  font-family: var(--font-body);
+}
+.explore-context-lost button {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
 /* --- Intro card --- */
 .explore-intro {
   position: fixed;

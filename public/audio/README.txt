@@ -12,10 +12,14 @@ Wired up in src/explore/audio.js:
   music-3.mp3           music-2 → music-3 → back to music.mp3, forever. Missing
                         ones are skipped automatically; add them anytime.
 
-  footstep-grass.mp3    One footstep on grass (the open hub).
-  footstep-hard.mp3     One footstep on a hard surface (bridges + building
-                        interiors). Each step is pitch-varied automatically so
-                        a single sample doesn't sound repetitive.
+  footstep-grass-1.mp3 … footstep-grass-5.mp3   Steps on grass (open hub).
+  footstep-stone-1.mp3 … footstep-stone-5.mp3   Steps inside the buildings.
+  footstep-glass-1.mp3 … footstep-glass-5.mp3   Steps on the bridge decks.
+                        5 variations per surface; one is chosen at random each
+                        step (no immediate repeat) and slightly pitch-varied, so
+                        footsteps don't sound repetitive. Single steps, trimmed
+                        tight. (The old footstep-grass.mp3 / footstep-hard.mp3
+                        are no longer used — safe to delete.)
 
   chime.mp3             Short "magic" sparkle — plays when a kiosk (or Max's
                         greeting) opens.

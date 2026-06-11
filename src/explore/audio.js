@@ -16,6 +16,15 @@ const BASE = '/audio/'
 // into /public/audio/ to add songs; missing ones are skipped automatically.
 const MUSIC_FILES = ['music.mp3', 'music-2.mp3', 'music-3.mp3']
 
+// Footstep variations per surface — one is picked at random each step (avoiding
+// an immediate repeat) for variety. Add/remove files here to match what's in
+// /public/audio/; any that fail to load are simply silent.
+const FOOTSTEP_SETS = {
+  grass: [1, 2, 3, 4, 5].map((n) => `footstep-grass-${n}.mp3`),
+  stone: [1, 2, 3, 4, 5].map((n) => `footstep-stone-${n}.mp3`),
+  glass: [1, 2, 3, 4, 5].map((n) => `footstep-glass-${n}.mp3`),
+}
+
 // Per-sound base volumes. ambientOutDucked is the outdoor bed's level while
 // you're inside a building (muffled, not silent).
 const VOL = {
@@ -23,7 +32,7 @@ const VOL = {
   ambientOut: 0.5,
   ambientOutDucked: 0, // fully silent once through the tunnel / inside
   ambientIn: 0.35,
-  foot: 0.25,
+  foot: 0.2,
   chime: 0.5,
   switchOn: 0.4, // layered under the chime on kiosk open for a richer "pop"
   greeting: 0.85,
@@ -40,6 +49,7 @@ class WorldAudio {
     this.playing = false
     this._musicIndex = 0
     this._musicFailed = []
+    this._lastStep = {} // last-played index per surface (avoid repeats)
     this._muted =
       typeof localStorage !== 'undefined' && localStorage.getItem('explore-muted') === '1'
   }
@@ -65,8 +75,11 @@ class WorldAudio {
         onplayerror: () => this._advanceMusic(),
       })
     )
-    this.footGrass = mk('footstep-grass.mp3', { volume: VOL.foot })
-    this.footHard = mk('footstep-hard.mp3', { volume: VOL.foot })
+    // Footstep pools: surface -> array of Howls (one chosen at random per step).
+    this.footsteps = {}
+    for (const surface of Object.keys(FOOTSTEP_SETS)) {
+      this.footsteps[surface] = FOOTSTEP_SETS[surface].map((f) => mk(f, { volume: VOL.foot }))
+    }
     this.chime = mk('chime.mp3', { volume: VOL.chime })
     this.switchOn = mk('switch-on.mp3', { volume: VOL.switchOn })
     this.greeting = mk('max-hello.mp3', { volume: VOL.greeting })
@@ -114,9 +127,14 @@ class WorldAudio {
 
   playFootstep(surface) {
     if (!this.playing) return
-    const h = surface === 'grass' ? this.footGrass : this.footHard
-    const id = h.play()
-    h.rate(0.9 + Math.random() * 0.2, id) // slight pitch variation per step
+    const set = this.footsteps[surface] || this.footsteps.grass
+    if (!set || !set.length) return
+    // Random variation, avoiding an immediate repeat of the same sample.
+    let i = Math.floor(Math.random() * set.length)
+    if (set.length > 1 && i === this._lastStep[surface]) i = (i + 1) % set.length
+    this._lastStep[surface] = i
+    const id = set[i].play()
+    set[i].rate(0.92 + Math.random() * 0.16, id) // a little pitch variation too
   }
 
   playChime() {
@@ -127,6 +145,14 @@ class WorldAudio {
 
   playGreeting() {
     if (this.playing) this.greeting.play()
+  }
+
+  // Halt everything (called when leaving the 3D world). Resets `playing` so a
+  // later enter() restarts the beds cleanly.
+  stop() {
+    if (!this.created) return
+    Howler.stop() // stops every currently-playing sound across all Howls
+    this.playing = false
   }
 
   get muted() {
