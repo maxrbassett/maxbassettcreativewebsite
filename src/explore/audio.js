@@ -12,9 +12,10 @@ import { Howl, Howler } from 'howler'
 
 const BASE = '/audio/'
 
-// Music playlist — played in order, looping back to the first. Drop any of these
-// into /public/audio/ to add songs; missing ones are skipped automatically.
-const MUSIC_FILES = ['music.mp3', 'music-2.mp3', 'music-3.mp3']
+// Music playlists — played in order, looping back to the first. Drop any of
+// these into /public/audio/ to add songs; missing ones are skipped automatically.
+const MUSIC_FILES = ['music.mp3', 'music-2.mp3', 'music-3.mp3'] // main world
+const SECRET_MUSIC_FILES = ['music-secret.mp3', 'music-secret-2.mp3'] // secret level
 
 // Footstep variations per surface — one is picked at random each step (avoiding
 // an immediate repeat) for variety. Add/remove files here to match what's in
@@ -35,6 +36,7 @@ const VOL = {
   foot: 0.2,
   chime: 0.5,
   switchOn: 0.4, // layered under the chime on kiosk open for a richer "pop"
+  whoosh: 0.6, // launch-pad teleport
   greeting: 0.85,
 }
 
@@ -47,8 +49,7 @@ class WorldAudio {
   constructor() {
     this.created = false
     this.playing = false
-    this._musicIndex = 0
-    this._musicFailed = []
+    this._secret = false // currently on the secret-level playlist?
     this._lastStep = {} // last-played index per surface (avoid repeats)
     this._muted =
       typeof localStorage !== 'undefined' && localStorage.getItem('explore-muted') === '1'
@@ -63,18 +64,10 @@ class WorldAudio {
     // Indoor room tone disabled for now (testing the outdoor-bed-only feel).
     // Re-enable by uncommenting:
     // this.ambientIn = mk('ambient-indoor.mp3', { loop: true, volume: 0 })
-    // Playlist: each track advances to the next on end (no per-track loop), so
-    // they cycle. A track that fails to load is flagged and skipped.
-    this.musicTracks = MUSIC_FILES.map((f, i) =>
-      mk(f, {
-        volume: 0,
-        onend: () => this._advanceMusic(),
-        onloaderror: () => {
-          this._musicFailed[i] = true
-        },
-        onplayerror: () => this._advanceMusic(),
-      })
-    )
+    // Two music playlists: the main world and the upbeat secret level. setSecret
+    // crossfades between them (pausing the inactive one so it doesn't drift).
+    this.music = this._buildPlaylist(MUSIC_FILES)
+    this.secretMusic = this._buildPlaylist(SECRET_MUSIC_FILES)
     // Footstep pools: surface -> array of Howls (one chosen at random per step).
     this.footsteps = {}
     for (const surface of Object.keys(FOOTSTEP_SETS)) {
@@ -82,6 +75,7 @@ class WorldAudio {
     }
     this.chime = mk('chime.mp3', { volume: VOL.chime })
     this.switchOn = mk('switch-on.mp3', { volume: VOL.switchOn })
+    this.whoosh = mk('whoosh.mp3', { volume: VOL.whoosh })
     this.greeting = mk('max-hello.mp3', { volume: VOL.greeting })
   }
 
@@ -91,29 +85,66 @@ class WorldAudio {
     Howler.mute(this._muted)
     if (this.playing) return
     this.playing = true
+    this._secret = false
     this.ambientOut.play() // volume driven by setAmbient()
     this.ambientIn?.play()
-    this._play(0, 1600) // music eases in
+    this._plPlay(this.music, 1600) // music eases in
   }
 
-  // Play music track i, fading it in over `dur` ms.
-  _play(i, dur) {
-    this._musicIndex = i
-    const h = this.musicTracks[i]
+  // Build a playlist: { index, failed, tracks }. Each track advances to the next
+  // on end (no per-track loop) and on play error; failed loads are skipped.
+  _buildPlaylist(files) {
+    const pl = { index: 0, failed: [], tracks: null }
+    pl.tracks = files.map((f, i) =>
+      mk(f, {
+        volume: 0,
+        onend: () => this._plAdvance(pl),
+        onloaderror: () => {
+          pl.failed[i] = true
+        },
+        onplayerror: () => this._plAdvance(pl),
+      })
+    )
+    return pl
+  }
+
+  // Play (or resume) a playlist's current track, fading it in over `dur` ms.
+  _plPlay(pl, dur) {
+    const h = pl.tracks[pl.index]
     const id = h.play()
     h.fade(0, VOL.music, dur, id)
   }
 
-  // Advance to the next available track (skipping any that failed to load),
-  // wrapping back to the start so the playlist loops forever.
-  _advanceMusic() {
-    const n = this.musicTracks.length
+  // Advance to the next loadable track (wrapping), so the playlist loops forever.
+  _plAdvance(pl) {
+    const n = pl.tracks.length
     for (let step = 1; step <= n; step++) {
-      const i = (this._musicIndex + step) % n
-      if (!this._musicFailed[i]) {
-        this._play(i, 1200)
+      const i = (pl.index + step) % n
+      if (!pl.failed[i]) {
+        pl.index = i
+        this._plPlay(pl, 1200)
         return
       }
+    }
+  }
+
+  // Fade out + pause a playlist's current track (so it doesn't advance while away).
+  _plPause(pl) {
+    const h = pl.tracks[pl.index]
+    h.fade(h.volume(), 0, 700)
+    h.once('fade', () => h.pause())
+  }
+
+  // Crossfade between the main playlist and the secret-level playlist.
+  setSecret(on) {
+    if (!this.playing || on === this._secret) return
+    this._secret = on
+    if (on) {
+      this._plPause(this.music)
+      this._plPlay(this.secretMusic, 700)
+    } else {
+      this._plPause(this.secretMusic)
+      this._plPlay(this.music, 700)
     }
   }
 
@@ -143,6 +174,10 @@ class WorldAudio {
     this.switchOn.play() // layered for a richer "pop"
   }
 
+  playWhoosh() {
+    if (this.playing) this.whoosh.play()
+  }
+
   playGreeting() {
     if (this.playing) this.greeting.play()
   }
@@ -153,6 +188,7 @@ class WorldAudio {
     if (!this.created) return
     Howler.stop() // stops every currently-playing sound across all Howls
     this.playing = false
+    this._secret = false
   }
 
   get muted() {

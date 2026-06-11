@@ -34,6 +34,26 @@ export const BRIDGE_LINKS = [
 export const SPAWN = [0, 2.5, 89.5]
 export const SECTION_IDS = ['dev', 'video', 'about'] // the enclosed museum islands
 
+// --- Secret land: a hidden island far below the hub, beneath the cloud sea so
+// it stays out of sight and doesn't spoil the floating look up top. Slightly
+// larger than the hub. Rendered standalone (NOT part of ISLANDS) for now, so it
+// doesn't touch the surface zones, bridges, or boundary — the fall-through
+// entrance and its own walkable boundary come next.
+const SECRET_Y = -18
+export const SECRET_ISLAND = { id: 'secret', position: [0, SECRET_Y, 75], radius: 30 }
+
+// The 5 mini-game islands are NOT near the hub — they're scattered far out in
+// the distance (some high above the main world, some down below the clouds),
+// reached only by the secret hub's launch pads. Color-coded so each hub pad
+// matches its destination island.
+export const SECRET_GAME_ISLANDS = [
+  { id: 'game-1', color: '#e07a5f', radius: 17, position: [185, 38, 130] },
+  { id: 'game-2', color: '#48b89a', radius: 16, position: [-175, 58, 30] },
+  { id: 'game-3', color: '#e6b13e', radius: 18, position: [40, -42, 255] },
+  { id: 'game-4', color: '#9a7ad1', radius: 16, position: [-130, -22, 235] },
+  { id: 'game-5', color: '#5b8def', radius: 17, position: [225, 72, -55] },
+]
+
 // Welcome NPC ("Max") standing just in front of spawn, turned to face the
 // player. (atan2(dx,dz) faces the model's +z toward the spawn point.)
 export const NPC_POSITION = [3.5, 0, 84]

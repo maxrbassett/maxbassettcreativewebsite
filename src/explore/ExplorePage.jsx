@@ -31,6 +31,15 @@ function SpeakerOffIcon() {
   )
 }
 
+// Full-screen black overlay for launch-pad teleports — fades out, the teleport
+// happens while it's opaque, then it fades back in. Its own component so only it
+// re-renders as the fade value changes each frame.
+function FadeOverlay() {
+  const fade = useExplore((s) => s.fade)
+  if (fade <= 0) return null
+  return <div className="explore-fade" style={{ opacity: fade }} aria-hidden="true" />
+}
+
 // Mute/unmute toggle for all world audio (persisted in audio.toggleMute).
 function SoundToggle() {
   const [muted, setMuted] = useState(audio.muted)
@@ -182,6 +191,7 @@ export default function ExplorePage() {
       )}
 
       {started && <SoundToggle />}
+      <FadeOverlay />
 
       <Link to="/" className="explore-exit" aria-label="Exit the 3D world">
         ✕ Exit

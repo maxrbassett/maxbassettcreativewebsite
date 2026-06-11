@@ -94,6 +94,15 @@
   background: var(--color-accent);
 }
 
+/* Launch-pad teleport fade — opacity driven per-frame from the scene. */
+.explore-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  background: #000;
+  pointer-events: none;
+}
+
 /* Shown if the WebGL context is lost (GPU out of memory) instead of a black screen. */
 .explore-context-lost {
   position: fixed;

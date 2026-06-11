@@ -150,6 +150,9 @@ export function ProximityDetector({ bodyRef }) {
     let found = null
     let best = Infinity
     for (const it of INTERACTABLES) {
+      // Ignore interactables on another level (e.g. the hub's kiosks/NPC when
+      // you're directly below them on the secret land) — proximity is x/z only.
+      if (Math.abs(p.y - it.position[1]) > 6) continue
       const d = Math.hypot(p.x - it.position[0], p.z - it.position[2])
       if (d < it.radius && d < best) {
         best = d

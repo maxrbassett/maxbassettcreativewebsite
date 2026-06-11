@@ -11,6 +11,11 @@ Wired up in src/explore/audio.js:
   music-2.mp3           OPTIONAL extra songs. The playlist plays music.mp3 →
   music-3.mp3           music-2 → music-3 → back to music.mp3, forever. Missing
                         ones are skipped automatically; add them anytime.
+  music-secret.mp3      Upbeat playlist for the SECRET LEVEL. Crossfades in when
+  music-secret-2.mp3    you're down there and back to the main playlist when you
+                        leave. Plays music-secret → -2 → loop; add more by
+                        extending SECRET_MUSIC_FILES in audio.js. Missing ones
+                        are skipped.
 
   footstep-grass-1.mp3 … footstep-grass-5.mp3   Steps on grass (open hub).
   footstep-stone-1.mp3 … footstep-stone-5.mp3   Steps inside the buildings.
@@ -24,6 +29,7 @@ Wired up in src/explore/audio.js:
   chime.mp3             Short "magic" sparkle — plays when a kiosk (or Max's
                         greeting) opens.
   switch-on.mp3         Layered under the chime on kiosk open for a richer pop.
+  whoosh.mp3            Plays on a launch-pad teleport (secret level).
   max-hello.mp3         Gentle "hello" from Max, played once on first entry.
                         (Not added yet — the greeting is wired but silent until
                         this file exists.)
