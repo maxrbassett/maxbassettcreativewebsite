@@ -25,7 +25,14 @@ export default function App() {
             <Route
               path="/explore"
               element={
-                <Suspense fallback={<div className="explore-loading">Loading the world…</div>}>
+                <Suspense
+                  fallback={
+                    <div className="explore-loading">
+                      <img className="explore-loading__mark" src="/favicon-dark.png" alt="" />
+                      <p className="explore-loading__text">Loading the world…</p>
+                    </div>
+                  }
+                >
                   <ExplorePage />
                 </Suspense>
               }

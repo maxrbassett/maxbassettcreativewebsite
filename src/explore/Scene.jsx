@@ -238,12 +238,12 @@ function Bridge({ axis, cx, cz, length }) {
   const deckArgs = axis === 'x' ? [length, 0.4, width] : [width, 0.4, length]
   return (
     <RigidBody type="fixed" colliders={false}>
-      {/* See-through glass deck on every tunnel (walls are glass too). Heavier
-          than a solid deck — if low-end/mobile lags, swap back to a plain
-          meshStandardMaterial here. */}
-      <mesh receiveShadow position={[cx, deckY, cz]}>
+      {/* See-through glass deck. Single-sided (you only ever see it from above)
+          and no receiveShadow — the deck is the largest glass surface in view, so
+          halving its fragment cost is the biggest tunnel win on mobile. */}
+      <mesh position={[cx, deckY, cz]}>
         <boxGeometry args={deckArgs} />
-        <GlassMaterial opacity={0.3} />
+        <GlassMaterial opacity={0.3} side={THREE.FrontSide} />
       </mesh>
       <CuboidCollider args={[deckArgs[0] / 2, 0.2, deckArgs[2] / 2]} position={[cx, deckY, cz]} />
     </RigidBody>

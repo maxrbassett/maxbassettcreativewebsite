@@ -29,21 +29,22 @@ import {
  * correctly from within and the shell reads from without.
  * ------------------------------------------------------------------ */
 
-/* Reusable see-through glass material (for the Videography bridge experiment).
- * Cheap transparent glass — tinted, low roughness, no transmission pass — so it
- * reads as glass without the perf cost of refraction. depthWrite off so what's
- * behind it shows through. */
-export function GlassMaterial({ color = '#cfe6ff', opacity = 0.22 }) {
+/* Reusable see-through glass material. Uses meshStandardMaterial (NOT physical
+ * + clearcoat) so it's cheap enough for mobile — the glass tunnels stack a lot
+ * of transparent overdraw, and clearcoat is the heaviest material shader there
+ * is. Low roughness + a little metalness + the HDRI env still give it a glassy
+ * sheen. depthWrite off so what's behind shows through; `side` defaults to
+ * DoubleSide (walls), but large surfaces (the deck) pass FrontSide to halve cost. */
+export function GlassMaterial({ color = '#cfe6ff', opacity = 0.22, side = THREE.DoubleSide }) {
   return (
-    <meshPhysicalMaterial
+    <meshStandardMaterial
       color={color}
       transparent
       opacity={opacity}
-      roughness={0.06}
-      metalness={0}
-      clearcoat={1}
-      clearcoatRoughness={0.12}
-      side={THREE.DoubleSide}
+      roughness={0.1}
+      metalness={0.2}
+      envMapIntensity={1.4}
+      side={side}
       depthWrite={false}
     />
   )
@@ -203,16 +204,17 @@ function BridgeTunnel({ axis, cx, cz, length }) {
   return (
     <group>
       {/* See-through glass side walls (open at both ends) + a glass ceiling over
-          the deck — every tunnel matches the Videography one. */}
-      <mesh position={wall1} receiveShadow>
+          the deck. No receiveShadow — transparent glass receiving shadows is
+          costly and barely visible; skipping it keeps tunnels cheap on mobile. */}
+      <mesh position={wall1}>
         <boxGeometry args={wallArgs} />
         <GlassMaterial />
       </mesh>
-      <mesh position={wall2} receiveShadow>
+      <mesh position={wall2}>
         <boxGeometry args={wallArgs} />
         <GlassMaterial />
       </mesh>
-      <mesh position={[cx, H, cz]} receiveShadow>
+      <mesh position={[cx, H, cz]}>
         <boxGeometry args={ceilArgs} />
         <GlassMaterial />
       </mesh>
