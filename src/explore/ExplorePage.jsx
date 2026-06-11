@@ -74,6 +74,9 @@ function hasWebGL() {
 export default function ExplorePage() {
   const [supported] = useState(hasWebGL)
   const [started, setStarted] = useState(false)
+  // If the GPU runs out of memory the browser kills the WebGL context (black
+  // screen). We catch that and offer a reload instead of a dead canvas.
+  const [contextLost, setContextLost] = useState(false)
   // Only full-screen panels hide the joystick — the NPC speech bubble doesn't,
   // so Max talking never interrupts moving around (esp. the auto-greet on load).
   const activeType = useExplore((s) => s.active?.type)
@@ -96,6 +99,9 @@ export default function ExplorePage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [started, begin])
+
+  // Stop all world audio when leaving the 3D world (Exit, back button, etc.).
+  useEffect(() => () => audio.stop(), [])
 
   // Auto-greet: open Max's welcome dialogue once, as soon as you enter the world.
   useEffect(() => {
@@ -139,13 +145,30 @@ export default function ExplorePage() {
 
       <Canvas
         shadows="soft"
-        dpr={[1, 2]}
+        // Cap pixel ratio: on high-density (esp. mobile) screens, 2x renders 4x
+        // the pixels — the heaviest GPU + memory cost. 1.5 still looks crisp.
+        dpr={[1, 1.5]}
         camera={{ position: [0, 4, 8], fov: 50, near: 0.3, far: 400 }}
+        onCreated={({ gl }) => {
+          const canvas = gl.domElement
+          canvas.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault() // let the browser keep the canvas for a restore
+            setContextLost(true)
+          })
+          canvas.addEventListener('webglcontextrestored', () => setContextLost(false))
+        }}
       >
         <Suspense fallback={null}>
           <Scene />
         </Suspense>
       </Canvas>
+
+      {contextLost && (
+        <div className="explore-context-lost">
+          <p>The 3D world ran low on graphics memory and paused.</p>
+          <button onClick={() => window.location.reload()}>Reload the world</button>
+        </div>
+      )}
 
       {/* drei's asset-loading overlay (tracks the GLB download). */}
       <Loader />

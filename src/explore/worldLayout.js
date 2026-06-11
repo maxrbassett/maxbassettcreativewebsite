@@ -78,11 +78,12 @@ export function tunnelProgress(x, z) {
   return null
 }
 
-// Footstep surface from position: 'grass' on the open hub, 'hard' on the bridge
-// decks and inside the (stone/marble) buildings. A logical map of the floor,
-// independent of its visual material.
+// Footstep surface from position: 'glass' on the bridge decks, 'stone' inside
+// the buildings, 'grass' on the open hub. A logical map of the floor.
 export function surfaceAt(x, z) {
-  return onBridge(x, z) || isIndoor(x, z) ? 'hard' : 'grass'
+  if (onBridge(x, z)) return 'glass'
+  if (isIndoor(x, z)) return 'stone'
+  return 'grass'
 }
 
 // World-space angle (atan2(dz,dx)) from an island's center toward the hub —

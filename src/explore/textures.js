@@ -68,11 +68,25 @@ function configureSet(base, rx, ry) {
   return out
 }
 
+// Configured sets are cached by (material, tiling) and SHARED across every
+// surface that uses the same tiling — so we upload each variant to the GPU once
+// instead of cloning it per mesh (many surfaces reuse the same repeat). This was
+// a real VRAM sink on mobile: ~45 marble clones collapse to a handful.
+const setCache = new Map()
+
 // Hook: load a named material's KTX2 maps (cached/shared by drei) and return a
-// configured set tiling at (rx, ry). Call once per surface that needs its own tiling.
+// configured set tiling at (rx, ry).
 export function useMaterialSet(name, rx = 1, ry = 1) {
   const base = useKTX2(MATERIALS[name], BASIS_PATH)
-  return useMemo(() => configureSet(base, rx, ry), [base, rx, ry])
+  return useMemo(() => {
+    const key = `${name}|${rx}|${ry}`
+    let set = setCache.get(key)
+    if (!set) {
+      set = configureSet(base, rx, ry)
+      setCache.set(key, set)
+    }
+    return set
+  }, [base, name, rx, ry])
 }
 
 // Back-compat convenience for the stone set.

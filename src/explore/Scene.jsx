@@ -383,9 +383,19 @@ function zoneClamp(z, x, zz) {
 }
 
 function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
+  const locked = useRef(false)
   useFrame(() => {
     const body = bodyRef.current?.group
     if (!body) return
+
+    // Lock the capsule's X/Z rotation once (keep yaw free for turning). The
+    // character physically can't tip over, so the "goes sideways" glitch can't
+    // happen even if the simulation hiccups under load.
+    if (!locked.current) {
+      body.setEnabledRotations(false, true, false, true)
+      locked.current = true
+    }
+
     const pos = body.translation()
 
     // Fall failsafe → respawn at the hub
@@ -493,7 +503,7 @@ function BoundaryGuard({ bodyRef, spawn = SPAWN, minY = -8 }) {
  *    by surfaceAt(); and
  *  - crossfade the ambient beds via a smoothed indoor/outdoor mix.
  * (The open-kiosk chime lives in ExplorePage so it works during asset load.) */
-const STEP_DISTANCE = 1.9 // world units between footfalls
+const STEP_DISTANCE = 2.4 // world units between footfalls (more spaced out)
 const RUN_CLIP = animationSet.run
 
 function SoundController({ bodyRef }) {
@@ -692,7 +702,10 @@ export default function Scene() {
         />
       </Clouds>
 
-      <Physics timeStep="vary">
+      {/* Fixed timestep (not "vary"): when FPS drops on mobile, a variable
+          step produces huge dt spikes that destabilize the capsule and flip the
+          character sideways. A fixed step keeps physics stable under load. */}
+      <Physics timeStep={1 / 60}>
         <KeyboardControls map={keyboardMap}>
           <Ecctrl
             ref={characterRef}
