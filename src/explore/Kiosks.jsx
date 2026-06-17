@@ -117,9 +117,13 @@ function Kiosk({ data }) {
   )
 }
 
+// Types that have their own in-world renderer (not wall screens): the NPC
+// (<Npc>), the Treat-O-Matic (<VendingMachine>), Memory Match (<MatchingGames>),
+// Dress the Bear (<DressUpStand>), and Grand Prix (<RaceStand>).
+const NON_KIOSK_TYPES = new Set(['npc', 'vending', 'matching', 'dressup', 'racing'])
+
 export function Kiosks() {
-  // The NPC is a character, rendered by <Npc> — not a wall screen.
-  return INTERACTABLES.filter((d) => d.type !== 'npc').map((data) => (
+  return INTERACTABLES.filter((d) => !NON_KIOSK_TYPES.has(d.type)).map((data) => (
     <Kiosk key={data.id} data={data} />
   ))
 }

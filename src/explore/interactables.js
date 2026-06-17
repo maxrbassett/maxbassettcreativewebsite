@@ -10,6 +10,10 @@ import { management } from '../data/management'
 import { personalProjects } from '../data/personalProjects'
 import maxProfile from '../assets/maxProfile2.jpg'
 import { wallSlots, coveSlots, BUILDING_ROOMS, NPC_POSITION, NPC_ROTATION_Y } from './worldLayout'
+import { VENDING_POSITION, VENDING_ROTATION_Y, VENDING_PROXIMITY } from './vending'
+import { MATCHING_GAMES, MATCHING_PROXIMITY } from './matching'
+import { DRESSUP_POSITION, DRESSUP_ROTATION_Y, DRESSUP_PROXIMITY } from './dressup'
+import { RACING_POSITION, RACING_ROTATION_Y, RACING_PROXIMITY } from './racing'
 
 /* Interactive wall-mounted screens inside the museum islands. Each entry has a
  * `type` that tells InteractionOverlay which content panel to render on
@@ -170,7 +174,51 @@ export const NPC = {
   },
 }
 
-export const INTERACTABLES = [...devKiosks, ...personalKiosks, ...internalKiosks, ...managementKiosks, ...videoKiosks, aboutKiosk, NPC]
+// --- Treat-O-Matic: the giveaway vending machine on the blue secret island.
+// Rendered as a 3D prop by <VendingMachine>; this entry just drives proximity +
+// the overlay game (a fun toy/candy gacha). ---
+export const VENDING = {
+  id: 'treat-o-matic',
+  type: 'vending',
+  radius: VENDING_PROXIMITY,
+  position: VENDING_POSITION,
+  rotationY: VENDING_ROTATION_Y,
+}
+
+// --- Memory Match: card-matching arcade cabinets on the secret game islands
+// (green = animals, purple = people). Rendered as 3D props by <MatchingGames>;
+// each entry drives proximity + the overlay game, carrying its `game` config so
+// the panel knows which board to play. ---
+export const MATCHING = MATCHING_GAMES.map((game) => ({
+  id: game.id,
+  type: 'matching',
+  radius: MATCHING_PROXIMITY,
+  position: game.position,
+  rotationY: game.rotationY,
+  game,
+}))
+
+// --- Dress the Bear: the bear boutique on the red secret island. Rendered as
+// a 3D prop by <DressUpStand>; this entry drives proximity + the overlay game. ---
+export const DRESSUP = {
+  id: 'dress-the-bear',
+  type: 'dressup',
+  radius: DRESSUP_PROXIMITY,
+  position: DRESSUP_POSITION,
+  rotationY: DRESSUP_ROTATION_Y,
+}
+
+// --- Grand Prix: the racing game on the gold secret island. Rendered as a 3D
+// prop by <RaceStand>; this entry drives proximity + the overlay game. ---
+export const RACING = {
+  id: 'grand-prix',
+  type: 'racing',
+  radius: RACING_PROXIMITY,
+  position: RACING_POSITION,
+  rotationY: RACING_ROTATION_Y,
+}
+
+export const INTERACTABLES = [...devKiosks, ...personalKiosks, ...internalKiosks, ...managementKiosks, ...videoKiosks, aboutKiosk, NPC, VENDING, ...MATCHING, DRESSUP, RACING]
 
 /* Type-agnostic accessors so the in-world screen (texture + proximity label)
  * doesn't need to branch on type. */
@@ -179,6 +227,10 @@ export const interactableTitle = (it) => {
     case 'video': return it.video.title
     case 'about': return 'About Max'
     case 'npc': return it.npc.name
+    case 'vending': return 'Treat-O-Matic'
+    case 'matching': return it.game.title
+    case 'dressup': return 'Dress the Bear'
+    case 'racing': return 'Grand Prix'
     case 'internal': return it.internal.title
     case 'management': return it.management.title
     default: return it.project.title
@@ -192,6 +244,10 @@ export const interactableImage = (it) => {
     case 'video': return `https://img.youtube.com/vi/${it.video.youtubeId}/hqdefault.jpg`
     case 'about': return it.about.photo
     case 'npc': return null
+    case 'vending': return null
+    case 'matching': return null
+    case 'dressup': return null
+    case 'racing': return null
     case 'internal': return it.internal.image || null
     case 'management': return it.management.image || null
     default: return it.project.image

@@ -12,6 +12,14 @@ import { WorldDecor } from './Decor'
 import { Museums, GlassMaterial, BuildingMaterial } from './Architecture'
 import { useMarbleSet } from './textures'
 import { Npc } from './Npc'
+import { VendingMachine } from './VendingMachine'
+import { MatchingGames } from './MatchingGame'
+import { VENDING_POSITION, VENDING_ISLAND_ID } from './vending'
+import { MATCHING_GAMES } from './matching'
+import { DRESSUP_POSITION, DRESSUP_ISLAND_ID } from './dressup'
+import { DressUpStand } from './DressUpStand'
+import { RACING_POSITION, RACING_ISLAND_ID } from './racing'
+import { RaceStand } from './RaceStand'
 import {
   ISLAND_TOP_Y,
   ISLAND_THICKNESS,
@@ -394,14 +402,15 @@ const FADE_DUR = 0.3 // seconds for the fade out / in
 const MAIN_CENTER = [0, 75] // aim arrivals back toward the main world (the hub)
 
 // On arrival, face the character — and so the follow-camera behind it — toward
-// the main world, so you look out toward home with the return portal behind you.
+// a world xz target: the island's game if it has one (so it's unmissable),
+// otherwise the main world (look out toward home, return portal behind you).
 // (ecctrl only gives relative rotate; derive the delta from the camera's yaw.)
 const _camDir = new THREE.Vector3()
-function orientTowardMain(ecctrl, camera, arrival) {
+function faceToward(ecctrl, camera, from, targetXZ) {
   if (!ecctrl?.rotateCamera) return
-  const dx = MAIN_CENTER[0] - arrival[0]
-  const dz = MAIN_CENTER[1] - arrival[2]
-  if (Math.hypot(dx, dz) < 5) return // arrived ~at the hub; nothing to aim at
+  const dx = targetXZ[0] - from[0]
+  const dz = targetXZ[1] - from[2]
+  if (Math.hypot(dx, dz) < 1) return // already on top of it; nothing to aim at
   const desired = Math.atan2(dx, dz)
   camera.getWorldDirection(_camDir)
   const current = Math.atan2(_camDir.x, _camDir.z)
@@ -430,7 +439,8 @@ function BoundaryGuard({ bodyRef, teleportRef, spawn = SPAWN }) {
         if (tp.t >= FADE_DUR) {
           body.setTranslation({ x: tp.target[0], y: tp.target[1], z: tp.target[2] }, true)
           body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-          orientTowardMain(bodyRef.current, camera, tp.target)
+          // Face the island's game if this pad has one, else the main world.
+          faceToward(bodyRef.current, camera, tp.target, tp.aim ? [tp.aim[0], tp.aim[2]] : MAIN_CENTER)
           tp.phase = 'wait'
           tp.t = 0
         }
@@ -695,6 +705,16 @@ const arrivalEdge = (isl) => {
   return [isl.position[0] + (dx / len) * r, isl.position[1] + 2, isl.position[2] + (dz / len) * r]
 }
 
+// Island → the game machine on it (where to look on arrival), so stepping onto
+// an island drops you facing its game. Islands without a game aim at the main
+// world (the default).
+const GAME_AIMS = {
+  [VENDING_ISLAND_ID]: VENDING_POSITION,
+  [DRESSUP_ISLAND_ID]: DRESSUP_POSITION,
+  [RACING_ISLAND_ID]: RACING_POSITION,
+  ...Object.fromEntries(MATCHING_GAMES.map((g) => [g.islandId, g.position])),
+}
+
 // Hub pads: one per game island (color-matched), plus one back up to the main
 // world. Six evenly spaced around the hub center (which stays clear for arrivals).
 const HUB_LAUNCHERS = [
@@ -704,6 +724,7 @@ const HUB_LAUNCHERS = [
       key: `to-${isl.id}`,
       position: [HUB[0] + Math.cos(a) * HUB_PAD_R, SECRET_Y, HUB[2] + Math.sin(a) * HUB_PAD_R],
       target: arrivalEdge(isl),
+      aim: GAME_AIMS[isl.id] || null,
       color: isl.color,
     }
   }),
@@ -737,7 +758,7 @@ const RETURN_LAUNCHERS = SECRET_GAME_ISLANDS.map((isl) => {
 
 const LAUNCHERS = [...HUB_LAUNCHERS, ...RETURN_LAUNCHERS]
 
-function Launcher({ bodyRef, position, target, color, onLaunch }) {
+function Launcher({ bodyRef, position, target, aim = null, color, onLaunch }) {
   const arrow = useRef(null)
 
   useFrame((state) => {
@@ -752,7 +773,7 @@ function Launcher({ bodyRef, position, target, color, onLaunch }) {
     // onLaunch ignores the call if a flight is already underway.
     if (Math.abs(pos.y - position[1]) < 5) {
       const d = Math.hypot(pos.x - position[0], pos.z - position[2])
-      if (d < LAUNCH_PAD_RADIUS) onLaunch(target)
+      if (d < LAUNCH_PAD_RADIUS) onLaunch(target, aim)
     }
   })
 
@@ -837,9 +858,9 @@ export default function Scene() {
   const teleportRef = useRef(null)
 
   // Kick off a fade-teleport to `target`. Ignored if one is already running.
-  const startTeleport = (target) => {
+  const startTeleport = (target, aim) => {
     if (teleportRef.current) return
-    teleportRef.current = { phase: 'out', t: 0, target }
+    teleportRef.current = { phase: 'out', t: 0, target, aim }
     audio.playWhoosh()
   }
 
@@ -1003,10 +1024,23 @@ export default function Scene() {
               bodyRef={characterRef}
               position={l.position}
               target={l.target}
+              aim={l.aim}
               color={l.color}
               onLaunch={startTeleport}
             />
           ))}
+
+          {/* Interactive giveaway vending machine on the blue game island. */}
+          <VendingMachine />
+
+          {/* Card-matching arcade cabinets (green: animals, purple: people). */}
+          <MatchingGames />
+
+          {/* Dress-the-bear boutique on the red game island. */}
+          <DressUpStand />
+
+          {/* Top-down racing game on the gold game island. */}
+          <RaceStand />
 
           {/* Enclosed themed museums (walls + domed roofs + interior light) and
               covered bridge tunnels. */}
