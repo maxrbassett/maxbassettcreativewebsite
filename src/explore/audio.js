@@ -42,8 +42,18 @@ const VOL = {
 
 const lerp = (a, b, t) => a + (b - a) * t
 
+// Web Audio Howl: the file is fetched in full and decoded up front. Use for
+// short, latency-sensitive SFX (footsteps, chime, whoosh) and the gaplessly
+// looping ambient bed — small files where instant, seamless playback matters.
 const mk = (file, opts) =>
   new Howl({ src: [BASE + file], onloaderror: () => {}, onplayerror: () => {}, ...opts })
+
+// HTML5-streaming Howl: playback starts as soon as enough has buffered and the
+// file is never fully decoded on the main thread. Use for the big music tracks
+// so they stream progressively instead of downloading megabytes up front and
+// saturating bandwidth while the 3D world is still loading.
+const mkStream = (file, opts) =>
+  new Howl({ src: [BASE + file], html5: true, onloaderror: () => {}, onplayerror: () => {}, ...opts })
 
 class WorldAudio {
   constructor() {
@@ -91,33 +101,45 @@ class WorldAudio {
     this._plPlay(this.music, 1600) // music eases in
   }
 
-  // Build a playlist: { index, failed, tracks }. Each track advances to the next
-  // on end (no per-track loop) and on play error; failed loads are skipped.
+  // Build a playlist: { index, files, failed, tracks }. This holds only the file
+  // NAMES — each track's Howl is constructed lazily by _track() the first time
+  // it's played, so constructing a playlist downloads nothing. The big music
+  // files therefore don't fetch until they're actually about to be heard (the
+  // next track only after the current one is ending, the secret playlist only
+  // when you reach the secret area), keeping bandwidth free for the 3D assets.
   _buildPlaylist(files) {
-    const pl = { index: 0, failed: [], tracks: null }
-    pl.tracks = files.map((f, i) =>
-      mk(f, {
-        volume: 0,
-        onend: () => this._plAdvance(pl),
-        onloaderror: () => {
-          pl.failed[i] = true
-        },
-        onplayerror: () => this._plAdvance(pl),
-      })
-    )
-    return pl
+    return { index: 0, files, failed: [], tracks: new Array(files.length).fill(null) }
+  }
+
+  // Lazily construct + cache the streaming Howl for track i of a playlist.
+  _track(pl, i) {
+    if (pl.tracks[i]) return pl.tracks[i]
+    const h = mkStream(pl.files[i], {
+      volume: 0,
+      onend: () => this._plAdvance(pl),
+      // A missing/broken file is marked failed and skipped; _plAdvance only plays
+      // tracks that haven't failed, so if every track is missing it just goes quiet
+      // (no infinite advance loop).
+      onloaderror: () => {
+        pl.failed[i] = true
+        this._plAdvance(pl)
+      },
+      onplayerror: () => this._plAdvance(pl),
+    })
+    pl.tracks[i] = h
+    return h
   }
 
   // Play (or resume) a playlist's current track, fading it in over `dur` ms.
   _plPlay(pl, dur) {
-    const h = pl.tracks[pl.index]
+    const h = this._track(pl, pl.index)
     const id = h.play()
     h.fade(0, VOL.music, dur, id)
   }
 
   // Advance to the next loadable track (wrapping), so the playlist loops forever.
   _plAdvance(pl) {
-    const n = pl.tracks.length
+    const n = pl.files.length
     for (let step = 1; step <= n; step++) {
       const i = (pl.index + step) % n
       if (!pl.failed[i]) {
@@ -129,8 +151,10 @@ class WorldAudio {
   }
 
   // Fade out + pause a playlist's current track (so it doesn't advance while away).
+  // No-op if the current track was never built/played (nothing to pause).
   _plPause(pl) {
     const h = pl.tracks[pl.index]
+    if (!h) return
     h.fade(h.volume(), 0, 700)
     h.once('fade', () => h.pause())
   }
