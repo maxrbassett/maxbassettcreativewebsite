@@ -11,6 +11,7 @@ import { Kiosks, ProximityDetector } from './Kiosks'
 import { WorldDecor } from './Decor'
 import { Museums, GlassMaterial, BuildingMaterial } from './Architecture'
 import { useMarbleSet } from './textures'
+import { QUALITY_SETTINGS } from './quality'
 import { Npc } from './Npc'
 import {
   ISLAND_TOP_Y,
@@ -886,8 +887,12 @@ export default function Scene() {
           the glass + stone and a natural ambient fill. Kept at a modest
           intensity so it complements (not replaces) the lights below; the drei
           <Sky> stays the visible backdrop (background not set). As more surfaces
-          go realistic we can lean on this more and dial the flat lights down. */}
-      <Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.5} />
+          go realistic we can lean on this more and dial the flat lights down.
+          Skipped on the low tier (the PMREM generation is a load-time GPU spike
+          and env sampling taxes every PBR material) — extra ambient fills in. */}
+      {QUALITY_SETTINGS.environment && (
+        <Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.5} />
+      )}
 
       {/* Outdoor light: a moderate hemisphere/ambient fill plus a warm low-angle
           key light aligned with the Sky's sun. Fill is dialed back from the old
@@ -895,14 +900,16 @@ export default function Scene() {
           surface orientation reads as form. The key light is named "followLight"
           so ecctrl keeps its shadow centered on the character as it moves. */}
       <hemisphereLight args={['#bcd8f5', '#e7d2a4', 0.45]} />
-      <ambientLight intensity={0.18} />
+      {/* Without the HDRI fill (low tier), lift the flat ambient so interiors and
+          shadowed faces don't read as muddy. */}
+      <ambientLight intensity={QUALITY_SETTINGS.environment ? 0.18 : 0.4} />
       <directionalLight
         name="followLight"
         position={SUN_POS}
         intensity={1.6}
         color="#ffe7c2"
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[QUALITY_SETTINGS.shadowMapSize, QUALITY_SETTINGS.shadowMapSize]}
         shadow-radius={6}
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
@@ -921,19 +928,23 @@ export default function Scene() {
         <meshBasicMaterial color="#dcebf9" />
       </mesh>
       {/* Self-hosted cloud sprite (texture prop) — drei's default loads from a
-          third-party CDN at runtime, which can fail (SSL) and crash the canvas. */}
-      <Clouds texture="/cloud.png" material={THREE.MeshBasicMaterial} limit={300} range={160}>
-        <Cloud
-          seed={1}
-          bounds={[260, 4, 260]}
-          segments={48}
-          volume={50}
-          opacity={0.5}
-          speed={0}
-          color="#f4f9ff"
-          position={[0, -10, 30]}
-        />
-      </Clouds>
+          third-party CDN at runtime, which can fail (SSL) and crash the canvas.
+          Volumetric puffs are heavy transparent overdraw, so the low tier skips
+          them and leans on the flat disc above (which both tiers keep). */}
+      {QUALITY_SETTINGS.volumetricClouds && (
+        <Clouds texture="/cloud.png" material={THREE.MeshBasicMaterial} limit={300} range={160}>
+          <Cloud
+            seed={1}
+            bounds={[260, 4, 260]}
+            segments={48}
+            volume={50}
+            opacity={0.5}
+            speed={0}
+            color="#f4f9ff"
+            position={[0, -10, 30]}
+          />
+        </Clouds>
+      )}
 
       {/* Fixed timestep (not "vary"): when FPS drops on mobile, a variable
           step produces huge dt spikes that destabilize the capsule and flip the
