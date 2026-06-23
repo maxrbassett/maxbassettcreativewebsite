@@ -5,9 +5,11 @@ import { Link } from 'react-router-dom'
 import Scene from './Scene'
 import TouchControls from './TouchControls'
 import InteractionOverlay from './InteractionOverlay'
+import PerfHUD, { PerfSampler } from './PerfHUD'
 import { useExplore } from './useExplore'
 import { audio } from './audio'
 import { NPC } from './interactables'
+import { QUALITY_SETTINGS } from './quality'
 import './explore.css'
 
 // Flat line icons (white, matching the Exit text) for the mute toggle.
@@ -153,10 +155,13 @@ export default function ExplorePage() {
       <InteractionOverlay isTouch={isTouch} />
 
       <Canvas
-        shadows="soft"
+        // Quality tier drives the heavy renderer knobs (see quality.js): soft
+        // shadows + dpr 1.5 + MSAA on capable GPUs, dropped on weak ones.
+        shadows={QUALITY_SETTINGS.shadows}
         // Cap pixel ratio: on high-density (esp. mobile) screens, 2x renders 4x
         // the pixels — the heaviest GPU + memory cost. 1.5 still looks crisp.
-        dpr={[1, 1.5]}
+        dpr={QUALITY_SETTINGS.dpr}
+        gl={{ antialias: QUALITY_SETTINGS.antialias }}
         camera={{ position: [0, 4, 8], fov: 50, near: 0.3, far: 400 }}
         onCreated={({ gl }) => {
           const canvas = gl.domElement
@@ -170,7 +175,11 @@ export default function ExplorePage() {
         <Suspense fallback={null}>
           <Scene />
         </Suspense>
+        {import.meta.env.DEV && <PerfSampler />}
       </Canvas>
+
+      {/* Dev-only perf readout (DOM overlay, outside the Canvas). */}
+      {import.meta.env.DEV && <PerfHUD />}
 
       {contextLost && (
         <div className="explore-context-lost">

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Text } from '@react-three/drei'
 import { useMarbleSet, MARBLE_TILE, MARBLE_NORMAL_SCALE } from './textures'
+import { QUALITY_SETTINGS } from './quality'
 import {
   ISLAND_TOP_Y,
   BRIDGE_HALF_WIDTH,
@@ -218,7 +219,11 @@ function BridgeTunnel({ axis, cx, cz, length }) {
         <boxGeometry args={ceilArgs} />
         <GlassMaterial />
       </mesh>
-      <pointLight position={[cx, H * 0.7, cz]} color="#fff0d8" intensity={0.6} distance={Math.max(length, 24)} decay={0.9} />
+      {/* Tunnel accent light — dropped on the low tier (forward rendering taxes
+          every fragment per light; the sun + sky already light the open deck). */}
+      {QUALITY_SETTINGS.tunnelLights && (
+        <pointLight position={[cx, H * 0.7, cz]} color="#fff0d8" intensity={0.6} distance={Math.max(length, 24)} decay={0.9} />
+      )}
     </group>
   )
 }
@@ -308,8 +313,11 @@ function RoomHeaders({ island }) {
 }
 
 /* One accent light per room — the building's single central light can't reach
- * past the new partition walls, so each room gets its own. */
+ * past the new partition walls, so each room gets its own. These are the bulk
+ * of the scene's dynamic lights (~8), so the low tier drops them entirely and
+ * relies on the one central building light + the lifted ambient fill. */
 function RoomLights({ island }) {
+  if (!QUALITY_SETTINGS.roomLights) return null
   const { id, radius: r } = island
   const [cx, , cz] = island.position
   const theme = BUILDING_THEME[id] || BUILDING_THEME.dev
