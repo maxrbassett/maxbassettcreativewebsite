@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useExplore } from './useExplore'
 import { INTERACTABLES } from './interactables'
 import { makePosterDataURL } from './screenPoster'
+import { audio } from './audio'
 
 function AboutPanel({ about, onClose }) {
   return (
@@ -29,6 +30,12 @@ function AboutPanel({ about, onClose }) {
 }
 
 function VideoPlayerPanel({ video, onClose }) {
+  // Duck the world music while the YouTube video plays so they don't overlap;
+  // resume it when the panel closes (or unmounts for any reason).
+  useEffect(() => {
+    audio.pauseMusic()
+    return () => audio.resumeMusic()
+  }, [])
   return (
     <div className="explore-panel-backdrop" onClick={onClose}>
       <div
