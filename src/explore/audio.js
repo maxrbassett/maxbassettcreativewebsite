@@ -60,6 +60,7 @@ class WorldAudio {
     this.created = false
     this.playing = false
     this._secret = false // currently on the secret-level playlist?
+    this._musicPaused = false // music ducked for an open kiosk video?
     this._lastStep = {} // last-played index per surface (avoid repeats)
     this._muted =
       typeof localStorage !== 'undefined' && localStorage.getItem('explore-muted') === '1'
@@ -159,6 +160,27 @@ class WorldAudio {
     h.once('fade', () => h.pause())
   }
 
+  // The playlist currently in play (secret level vs main world).
+  _activePlaylist() {
+    return this._secret ? this.secretMusic : this.music
+  }
+
+  // Duck the world music while external media (a YouTube kiosk video) plays, so
+  // the two don't talk over each other. pauseMusic fades + pauses the current
+  // track; resumeMusic fades it back in. Safe to call before audio is unlocked
+  // or when nothing is playing (no-ops), and idempotent if called twice.
+  pauseMusic() {
+    if (!this.playing || this._musicPaused) return
+    this._musicPaused = true
+    this._plPause(this._activePlaylist())
+  }
+
+  resumeMusic() {
+    if (!this.playing || !this._musicPaused) return
+    this._musicPaused = false
+    this._plPlay(this._activePlaylist(), 700)
+  }
+
   // Crossfade between the main playlist and the secret-level playlist.
   setSecret(on) {
     if (!this.playing || on === this._secret) return
@@ -213,6 +235,7 @@ class WorldAudio {
     Howler.stop() // stops every currently-playing sound across all Howls
     this.playing = false
     this._secret = false
+    this._musicPaused = false
   }
 
   get muted() {
